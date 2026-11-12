@@ -38,13 +38,6 @@ export async function insertMessage(message) {
     ON CONFLICT (id) DO NOTHING`;
 }
 
-export async function selectRecentMessages(chatId, limit) {
-  const sql = getSql();
-  const rows = await sql`SELECT id, chat_id, role, text, created_at FROM messages
-    WHERE chat_id = ${chatId} ORDER BY created_at DESC LIMIT ${limit}`;
-  return rows.map(rowToMessage);
-}
-
 export async function selectUserMessagesFromOtherChats(chatId, limit) {
   const sql = getSql();
   const rows = await sql`SELECT id, chat_id, role, text, created_at FROM messages

@@ -1,19 +1,10 @@
 import { getUserMessagesFromOtherChats, searchSimilarMessages } from './memory.service.js';
-import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT, RECALL_TIMEOUT_MS } from '../config/ai.js';
+import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT } from '../config/ai.js';
 
-const RECALL_WORDS = [
-  'earlier',
-  'before',
-  'last time',
-  'yesterday',
-  'did i ask',
-  'what did i',
-  'previous',
-  'remember',
-];
+// If the user writes one of these, they are asking about the past
+const RECALL_WORDS = ['earlier', 'before', 'last time', 'yesterday', 'did i ask', 'what did i', 'remember'];
 
-// Does the user seem to be asking about the past?
-export function wantsRecall(text) {
+function wantsRecall(text) {
   const lowerText = text.toLowerCase();
   for (const word of RECALL_WORDS) {
     if (lowerText.includes(word)) return true;
@@ -21,57 +12,31 @@ export function wantsRecall(text) {
   return false;
 }
 
-// Removes snippets with the same text
-export function removeDuplicates(snippets) {
-  const seen = [];
-  const result = [];
-  for (const snippet of snippets) {
-    const key = snippet.text.trim().toLowerCase();
-    if (seen.includes(key)) continue;
-    seen.push(key);
-    result.push(snippet);
-  }
-  return result;
-}
-
-// Keeps snippets until we reach the token limit (1 token is about 4 characters)
-export function limitTokens(snippets, maxTokens) {
-  const result = [];
-  let tokens = 0;
-  for (const snippet of snippets) {
-    const snippetTokens = Math.ceil(snippet.text.length / 4);
-    if (tokens + snippetTokens > maxTokens) break;
-    tokens = tokens + snippetTokens;
-    result.push(snippet);
-  }
-  return result;
-}
-
-// Finds snippets from older chats: [{ chatId, role, text, createdAt }]
-async function findSnippets(chatId, userText) {
-  // Both lookups run at the same time
-  const [semantic, recent] = await Promise.all([
-    searchSimilarMessages(userText, chatId, RECALL_SEMANTIC_LIMIT),
-    wantsRecall(userText) ? getUserMessagesFromOtherChats(chatId, RECALL_RECENT_LIMIT) : [],
-  ]);
-
-  const unique = removeDuplicates(recent.concat(semantic));
-  const snippets = unique.map((item) => ({
-    chatId: item.chatId,
-    role: item.role,
-    text: item.text,
-    createdAt: item.createdAt,
-  }));
-  return limitTokens(snippets, RECALL_MAX_TOKENS);
-}
-
-// Returns snippets, or [] if there is nothing good or it takes too long
+// Returns older messages: [{ chatId, role, text, createdAt }]
+// Returns [] if there is nothing good to add.
 export async function getRecall(chatId, userText) {
-  const timeout = new Promise((resolve) => setTimeout(() => resolve([]), RECALL_TIMEOUT_MS));
-  try {
-    return await Promise.race([findSnippets(chatId, userText), timeout]);
-  } catch (error) {
-    console.log('Recall failed:', error.message);
-    return [];
+  let found = await searchSimilarMessages(userText, chatId, RECALL_SEMANTIC_LIMIT);
+
+  if (wantsRecall(userText)) {
+    const recent = await getUserMessagesFromOtherChats(chatId, RECALL_RECENT_LIMIT);
+    found = recent.concat(found);
   }
+
+  // Remove repeated texts and stop when we reach the token limit (1 token is about 4 characters)
+  const snippets = [];
+  const seenTexts = [];
+  let tokens = 0;
+  for (const item of found) {
+    if (seenTexts.includes(item.text)) continue;
+    tokens = tokens + Math.ceil(item.text.length / 4);
+    if (tokens > RECALL_MAX_TOKENS) break;
+    seenTexts.push(item.text);
+    snippets.push({
+      chatId: item.chatId,
+      role: item.role,
+      text: item.text,
+      createdAt: item.createdAt,
+    });
+  }
+  return snippets;
 }
