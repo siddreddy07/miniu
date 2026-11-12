@@ -22,6 +22,7 @@ function getText(message) {
 
 // Shows a simple message to the user when the AI fails
 function getErrorMessage(error) {
+  console.log('AI error:', error.statusCode, error.message);
   if (error.statusCode === 429) {
     return 'The AI is busy right now. Please try again in a few seconds.';
   }
