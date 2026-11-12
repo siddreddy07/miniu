@@ -46,9 +46,3 @@ npm run dev
 
 Open http://localhost:3000.
 
-## Useful commands
-
-| Command | What it does |
-|---|---|
-| `npm run eval` (in `server`) | asks 10 test questions and prints if search was used and how long it took (server must be running) |
-| `node scripts/test-recall.js` (in `server`) | prints the memory block from fake snippets, no database needed |

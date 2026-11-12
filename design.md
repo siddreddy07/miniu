@@ -74,7 +74,7 @@ If Neon, Cohere or Pinecone fail, recall is skipped and the agent still answers.
 Five results with ~300-char snippets are enough to answer and keep tokens low. A 10 minute in-memory cache (checked inside the search service) makes repeats instant. Tradeoff: up to 10 minutes stale, and the cache is lost on restart. The model picks the search query, so the cache cannot be checked before the model runs; this differs from the first draft.
 
 **Built for a small model.**
-Tool description and input are short and strict (query 2 to 200 chars), tool output is capped, the last step has tools turned off so the model must write an answer instead of looping, and a search error returns `{ error }` so the model can say the search failed. Recall has a 3 second limit so a slow service never delays the reply.
+Tool description and input are short and strict (query 2 to 200 chars), tool output is capped, the last step has tools turned off so the model must write an answer instead of looping, and a search error returns `{ error }` so the model can say the search failed.
 
 **Stream order matters.**
 The server sends the `start` chunk first, then the `data-memory` part, then the model stream. In testing, the browser dropped a memory part that arrived before `start`.
@@ -115,4 +115,4 @@ Changes made while building, each logged as a prompt: simpler beginner-level cod
 
 AI SDK v7 differences handled: `stepCountIs` is now `isStepCount`, and the standalone `toUIMessageStream` and `pipeUIMessageStreamToResponse` are used instead of the deprecated methods on the result.
 
-Verification status: the server routes, validation, Tavily search with caching, Neon table and reads/writes, Cohere embeddings, the recall formatting script and the client build were tested. The full model reply (Groq), Pinecone upsert/query and the cross-chat recall check were not run, because the Groq key was missing and Pinecone rejected its API key at the time of the build.
+Verification status: the server routes, validation, Tavily search with caching, Neon table and reads/writes, Cohere embeddings, and the client build were tested. The full model reply (Groq), Pinecone upsert/query and the cross-chat recall check were not run, because the Groq key was missing and Pinecone rejected its API key at the time of the build.
