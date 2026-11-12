@@ -54,7 +54,8 @@ export default function Chat({
     id: chatId,
     messages: initialMessages,
     // The server needs the userId to keep each user's chats and memory apart
-    transport: new DefaultChatTransport({ api: apiUrl, body: { userId } }),
+    transport: new DefaultChatTransport({ api: apiUrl, body: { userId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    }),
     onFinish: () => onSaved(),
   })
 

@@ -7,6 +7,7 @@ import {
   selectChats,
   selectChatMessages,
   selectUserMessagesFromOtherChats,
+  selectUserMessagesInRange,
 } from '../lib/db.js';
 import { embedText } from '../lib/embeddings.js';
 import { saveVector, querySimilar } from '../lib/vectorStore.js';
@@ -93,6 +94,16 @@ export async function getUserMessagesFromOtherChats(userId, chatId, limit) {
     return await selectUserMessagesFromOtherChats(userId, chatId, limit);
   } catch (error) {
     console.log('Could not read other chats:', error.message);
+    return [];
+  }
+}
+
+// The user's messages written between two times (all their chats)
+export async function getUserMessagesInRange(userId, start, end, limit) {
+  try {
+    return await selectUserMessagesInRange(userId, start, end, limit);
+  } catch (error) {
+    console.log('Could not read messages by date:', error.message);
     return [];
   }
 }

@@ -1,28 +1,46 @@
-import { getUserMessagesFromOtherChats, searchSimilarMessages } from './memory.service.js';
-import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT } from '../config/ai.js';
+import { getUserMessagesFromOtherChats, getUserMessagesInRange, searchSimilarMessages } from './memory.service.js';
+import { getDateRange } from '../lib/dateRange.js';
+import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT, RECALL_DAY_LIMIT } from '../config/ai.js';
 
 // If the user writes one of these, they are asking about the past
-const RECALL_WORDS = ['earlier', 'last time', 'yesterday', 'did i ask', 'what did i', 'remember', 'asked before'];
+const RECALL_WORDS = ['earlier', 'last time', 'did i ask', 'what did i', 'remember', 'asked before', 'we talked', 'we discussed'];
 
-// Exported because the chat service also needs to know if this is a question about the past
-export function wantsRecall(text) {
-  const lowerText = text.toLowerCase();
-  for (const word of RECALL_WORDS) {
-    if (lowerText.includes(word)) return true;
+// A day like "yesterday" only counts as a question about the past when one of these is also there.
+// So "who won the match yesterday?" still searches the web.
+const HISTORY_WORDS = ['i ask', 'i said', 'i told', 'i wrote', 'my chat', 'my question', 'our chat', 'we chat', 'we talk'];
+
+function hasWord(text, words) {
+  for (const word of words) {
+    if (text.includes(word)) return true;
   }
   return false;
+}
+
+// Exported because the chat service also needs to know if this is a question about the past
+export function wantsRecall(text, timezone) {
+  const lowerText = text.toLowerCase();
+  if (hasWord(lowerText, RECALL_WORDS)) return true;
+  return getDateRange(text, timezone) !== null && hasWord(lowerText, HISTORY_WORDS);
 }
 
 // Returns older messages: [{ chatId, role, text, createdAt }]
 // recentTexts are the messages the model already sees in this chat, so we skip them.
 // Returns [] if there is nothing good to add.
-export async function getRecall(userId, chatId, userText, recentTexts) {
+export async function getRecall(userId, chatId, userText, recentTexts, timezone) {
   // The search covers all chats of this user, old ones and the current one
   let found = await searchSimilarMessages(userId, userText, RECALL_SEMANTIC_LIMIT);
 
-  if (wantsRecall(userText)) {
-    const recent = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
-    found = recent.concat(found);
+  if (wantsRecall(userText, timezone)) {
+    // "yesterday", "Monday"... : read that day straight from the database
+    const range = getDateRange(userText, timezone);
+    const dayMessages = range ? await getUserMessagesInRange(userId, range.start, range.end, RECALL_DAY_LIMIT) : [];
+
+    if (dayMessages.length > 0) {
+      found = dayMessages;
+    } else {
+      const recent = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
+      found = recent.concat(found);
+    }
   }
 
   // Remove repeated texts and stop when we reach the token limit (1 token is about 4 characters)

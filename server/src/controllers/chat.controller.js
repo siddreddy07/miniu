@@ -10,6 +10,7 @@ const userBodySchema = z.object({
 const bodySchema = z.object({
   id: z.string(),
   userId: z.string().min(1),
+  timezone: z.string().optional(),
   messages: z.array(z.any()).min(1),
 });
 
@@ -21,7 +22,7 @@ export async function chatController(req, res) {
   }
 
   try {
-    const stream = await startChat(parsed.data.userId, parsed.data.id, parsed.data.messages);
+    const stream = await startChat(parsed.data.userId, parsed.data.id, parsed.data.messages, parsed.data.timezone);
     await pipeUIMessageStreamToResponse({ response: res, stream: stream });
   } catch (error) {
     console.log('Chat error:', error.message);

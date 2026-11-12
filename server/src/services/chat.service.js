@@ -32,7 +32,7 @@ function getErrorMessage(error) {
   return 'The AI had a problem. Please try again.';
 }
 
-export async function startChat(userId, chatId, messages) {
+export async function startChat(userId, chatId, messages, timezone) {
   const startTime = Date.now();
   const lastMessage = messages[messages.length - 1];
   const userText = getText(lastMessage);
@@ -58,13 +58,13 @@ export async function startChat(userId, chatId, messages) {
 
   // 2. Find older messages of this user, but not the ones the model already sees
   const recentTexts = recentMessages.map(getText);
-  const snippets = await getRecall(userId, chatId, userText, recentTexts);
+  const snippets = await getRecall(userId, chatId, userText, recentTexts, timezone);
 
   // 3. Ask the model
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
 
   // For a question about the past, the model answers from memory and does not search
-  const askingAboutPast = wantsRecall(userText);
+  const askingAboutPast = wantsRecall(userText, timezone);
   const systemPrompt = buildSystemPrompt(snippets, askingAboutPast);
 
   // The web search result of this answer, saved so the source badges survive a reload

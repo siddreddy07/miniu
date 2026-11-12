@@ -107,6 +107,18 @@ export async function insertMessage(message) {
 }
 
 // The latest user messages of this user, from all chats except the current one
+// The user's own messages (from all their chats) written between start and end (ISO times)
+export async function selectUserMessagesInRange(userId, start, end, limit) {
+  const sql = getSql();
+  const rows = await sql`SELECT m.id, m.chat_id, m.role, m.text, m.created_at
+    FROM messages m
+    JOIN chats c ON c.id = m.chat_id
+    WHERE c.user_id = ${userId} AND m.role = 'user'
+      AND m.created_at >= ${start} AND m.created_at < ${end}
+    ORDER BY m.created_at ASC LIMIT ${limit}`;
+  return rows.map(rowToMessage);
+}
+
 export async function selectUserMessagesFromOtherChats(userId, chatId, limit) {
   const sql = getSql();
   const rows = await sql`SELECT m.id, m.chat_id, m.role, m.text, m.created_at

@@ -25,4 +25,5 @@ export const SEARCH_CACHE_MINUTES = 10;
 export const RECALL_MAX_TOKENS = 600;
 export const RECALL_RECENT_LIMIT = 5;
 export const RECALL_SEMANTIC_LIMIT = 2;
+export const RECALL_DAY_LIMIT = 15;
 export const RECALL_MIN_SCORE = 0.5;
