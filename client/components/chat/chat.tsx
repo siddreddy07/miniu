@@ -121,7 +121,7 @@ function ChatBox({ chatId }: { chatId: string }) {
 
       {error && (
         <div className="flex items-center gap-2 py-2 text-sm text-red-500">
-          <span>Something went wrong.</span>
+          <span>{error.message}</span>
           <Button variant="outline" size="sm" onClick={() => regenerate()}>
             Retry
           </Button>
