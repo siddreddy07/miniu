@@ -3,29 +3,37 @@
 import { useEffect, useState } from "react"
 import type { UIMessage } from "ai"
 
-import { useRouter } from "next/navigation"
-
-import { getUserId, newChatId } from "@/lib/chat-id"
 import Chat from "@/components/chat/chat"
-import AppSidebar, { type ChatItem } from "@/components/chat/app-sidebar"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { useShell } from "@/components/chat/chat-shell"
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
-// Asks the server for the chat list of this user
-async function fetchChats(userId: string): Promise<ChatItem[]> {
-  try {
-    const response = await fetch(apiUrl + "/api/chats?userId=" + userId)
-    const data = await response.json()
-    return data.chats
-  } catch {
-    return []
+// What the server sends for each saved message
+type SavedMessage = {
+  id: string
+  role: "user" | "assistant"
+  text: string
+  // the web search the assistant did for this answer (or null)
+  search: { query: string; results: unknown[] } | null
+}
+
+// Turns a saved message into a message the chat screen understands
+function toUIMessage(message: SavedMessage) {
+  const parts = []
+
+  // If the answer used a web search, bring back the search row and the source badges
+  if (message.search) {
+    parts.push({
+      type: "tool-webSearch",
+      toolCallId: "saved-" + message.id,
+      state: "output-available",
+      input: { query: message.search.query },
+      output: message.search,
+    })
   }
+  parts.push({ type: "text", text: message.text })
+
+  return { id: message.id, role: message.role, parts: parts } as UIMessage
 }
 
 // Asks the server for the saved messages of one conversation.
@@ -46,84 +54,42 @@ async function fetchMessages(
     // 404 means a new conversation that has no messages yet
     if (!response.ok) return []
     const data = await response.json()
-    return data.messages.map(
-      (message: { id: string; role: "user" | "assistant"; text: string }) => ({
-        id: message.id,
-        role: message.role,
-        parts: [{ type: "text", text: message.text }],
-      })
-    )
+    return data.messages.map(toUIMessage)
   } catch {
     return []
   }
 }
 
-// The chat id comes from the URL: /chat/<chatId>
+// The chat area for the chat in the URL: /chat/<chatId>.
+// The sidebar is not here, it stays on the screen in the layout.
 export default function ChatApp({ chatId }: { chatId: string }) {
-  const router = useRouter()
-  const [userId, setUserId] = useState("")
-  const [chats, setChats] = useState<ChatItem[]>([])
+  const { userId, reloadChats } = useShell()
+
   // null means "still loading the messages"
   const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(
     null
   )
 
-  // When the page opens: take the user id from localStorage, then load the chat list
-  // and the messages of the chat in the URL.
+  // Load the messages of this chat once we know the user.
   // If the chat is not this user's, the server says "not found" and we show an empty chat.
   useEffect(() => {
-    async function start() {
-      const savedUserId = getUserId()
-      const [chatList, messages] = await Promise.all([
-        fetchChats(savedUserId),
-        fetchMessages(savedUserId, chatId),
-      ])
-      setUserId(savedUserId)
-      setChats(chatList)
-      setInitialMessages(messages)
+    if (userId === "") return
+    async function load() {
+      setInitialMessages(await fetchMessages(userId, chatId))
     }
-    start()
-  }, [chatId])
+    load()
+  }, [userId, chatId])
 
-  async function reloadChats() {
-    setChats(await fetchChats(userId))
-  }
-
-  // Changing the chat means changing the URL
-  function selectChat(id: string) {
-    router.push("/chat/" + id)
-  }
-
-  function startNewChat() {
-    router.push("/chat/" + newChatId())
+  if (initialMessages === null) {
+    return <p className="p-4 text-sm text-muted-foreground">Loading...</p>
   }
 
   return (
-    <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar
-          chats={chats}
-          currentChatId={chatId}
-          onSelectChat={selectChat}
-          onNewChat={startNewChat}
-        />
-        <SidebarInset>
-          <header className="flex h-12 items-center gap-2 border-b px-3">
-            <SidebarTrigger />
-            <span className="text-sm font-medium">Chat</span>
-          </header>
-
-          {initialMessages !== null && (
-            <Chat
-              key={chatId}
-              userId={userId}
-              chatId={chatId}
-              initialMessages={initialMessages}
-              onSaved={reloadChats}
-            />
-          )}
-        </SidebarInset>
-      </SidebarProvider>
-    </TooltipProvider>
+    <Chat
+      userId={userId}
+      chatId={chatId}
+      initialMessages={initialMessages}
+      onSaved={reloadChats}
+    />
   )
 }

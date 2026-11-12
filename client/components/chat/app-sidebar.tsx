@@ -22,6 +22,7 @@ export type ChatItem = {
 
 type AppSidebarProps = {
   chats: ChatItem[]
+  chatsLoaded: boolean
   currentChatId: string
   onSelectChat: (id: string) => void
   onNewChat: () => void
@@ -39,6 +40,7 @@ function formatDate(isoDate: string) {
 
 export default function AppSidebar({
   chats,
+  chatsLoaded,
   currentChatId,
   onSelectChat,
   onNewChat,
@@ -47,7 +49,8 @@ export default function AppSidebar({
   const { setOpenMobile } = useSidebar()
 
   // A chat that has no messages yet is not in the list, so we show it as "New chat"
-  const isNewChat = !chats.some((chat) => chat.id === currentChatId)
+  const isNewChat =
+    chatsLoaded && !chats.some((chat) => chat.id === currentChatId)
 
   function handleSelect(id: string) {
     onSelectChat(id)
