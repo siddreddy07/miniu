@@ -37,7 +37,10 @@ export async function getUserMessagesFromOtherChats(chatId, limit) {
 export async function indexMessage(message) {
   try {
     const vector = await embedText(message.text, 'search_document');
-    await saveVector(message.id, vector, {
+    // Vector id looks like: user-<chatId>-<timestamp>
+    const vectorId = message.role + '-' + message.chatId + '-' + Date.parse(message.createdAt);
+    await saveVector(vectorId, vector, {
+      messageId: message.id,
       chatId: message.chatId,
       role: message.role,
       createdAt: message.createdAt,
