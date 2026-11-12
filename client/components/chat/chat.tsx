@@ -7,6 +7,7 @@ import { DefaultChatTransport } from "ai"
 import { getChatId } from "@/lib/chat-id"
 import ToolCall, { type SearchPart } from "@/components/chat/tool-call"
 import SourceBadges from "@/components/chat/source-badges"
+import MemoryBadges, { type Snippet } from "@/components/chat/memory-badges"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
 import {
@@ -81,6 +82,11 @@ function ChatBox({ chatId }: { chatId: string }) {
                               {part.text}
                             </p>
                           )
+                        }
+                        if (part.type === "data-memory") {
+                          const data = (part as unknown as { data: Snippet[] })
+                            .data
+                          return <MemoryBadges key={index} snippets={data} />
                         }
                         if (part.type === "tool-webSearch") {
                           const searchPart = part as unknown as SearchPart
