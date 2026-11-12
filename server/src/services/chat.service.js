@@ -1,9 +1,7 @@
 import { streamText, convertToModelMessages, toUIMessageStream, isStepCount } from 'ai';
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_STEPS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
-import { webSearch } from '../tools/webSearch.tool.js';
-
-const tools = { webSearch: webSearch };
+import { tools } from '../tools/tool.js';
 
 // Starts the model and returns a UI message stream
 export async function startChat(messages) {
