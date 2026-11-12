@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import { DefaultChatTransport, type UIMessage } from "ai"
 
-import { getChatId } from "@/lib/chat-id"
 import ToolCall, { type SearchPart } from "@/components/chat/tool-call"
 import SourceBadges from "@/components/chat/source-badges"
 import MemoryBadges, { type Snippet } from "@/components/chat/memory-badges"
@@ -21,25 +20,28 @@ import {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL + "/api/chat"
 
-// Waits until we have the chat id (localStorage only works in the browser)
-export default function Chat() {
-  const [chatId, setChatId] = useState("")
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setChatId(getChatId())
-  }, [])
-
-  if (chatId === "") return null
-  return <ChatBox chatId={chatId} />
+type ChatProps = {
+  userId: string
+  chatId: string
+  initialMessages: UIMessage[]
+  // Called when a reply is finished, so the sidebar can reload
+  onSaved: () => void
 }
 
-function ChatBox({ chatId }: { chatId: string }) {
+export default function Chat({
+  userId,
+  chatId,
+  initialMessages,
+  onSaved,
+}: ChatProps) {
   const [input, setInput] = useState("")
 
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
     id: chatId,
-    transport: new DefaultChatTransport({ api: apiUrl }),
+    messages: initialMessages,
+    // The server needs the userId to keep each user's chats and memory apart
+    transport: new DefaultChatTransport({ api: apiUrl, body: { userId } }),
+    onFinish: () => onSaved(),
   })
 
   const isBusy = status === "submitted" || status === "streaming"
@@ -60,7 +62,7 @@ function ChatBox({ chatId }: { chatId: string }) {
   }
 
   return (
-    <div className="mx-auto flex h-svh max-w-2xl flex-col p-4">
+    <div className="mx-auto flex h-[calc(100svh-3rem)] w-full max-w-2xl flex-col p-4">
       <MessageScrollerProvider>
         <MessageScroller>
           <MessageScrollerViewport>
