@@ -13,6 +13,7 @@ export function buildMemoryBlock(snippets) {
   const lines = ['Earlier chats (what the user said before. This is not a source of facts):'];
   for (const snippet of snippets) {
     lines.push('- [' + formatDate(snippet.createdAt) + '] ' + snippet.role + ': ' + snippet.text);
+    if (snippet.answer) lines.push('  assistant answered then: ' + snippet.answer);
   }
   return lines.join('\n');
 }
@@ -50,7 +51,7 @@ export function buildSystemPrompt(snippets, askingAboutPast) {
   if (askingAboutPast) {
     lines.push('');
     lines.push('The user is asking about their own earlier chats. Do NOT use the webSearch tool for this.');
-    lines.push('Answer only from the Earlier chats list. It shows what the user said before, with dates.');
+    lines.push('Answer only from the Earlier chats list. It shows what the user said before, with dates, and what you answered then.');
     lines.push('If the list is missing or does not help, say you cannot find it in the earlier chats.');
   }
 

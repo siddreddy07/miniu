@@ -1,9 +1,10 @@
-import { getUserMessagesFromOtherChats, getUserMessagesInRange, searchSimilarMessages } from './memory.service.js';
+import { getAnswerAfter, getUserMessagesFromOtherChats, getUserMessagesInRange, searchSimilarMessages } from './memory.service.js';
 import { getDateRange } from '../lib/dateRange.js';
-import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT, RECALL_DAY_LIMIT } from '../config/ai.js';
+import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT, RECALL_DAY_LIMIT, RECALL_ANSWER_CHARS } from '../config/ai.js';
 
 // If the user writes one of these, they are asking about the past
-const RECALL_WORDS = ['earlier', 'last time', 'did i ask', 'what did i', 'remember', 'asked before', 'we talked', 'we discussed'];
+const RECALL_WORDS = ['earlier', 'last time', 'did i ask', 'what did i', 'remember', 'asked before', 'we talked', 'we discussed',
+  'did we talk', 'have we talked', 'did we discuss', 'you suggested', 'you recommended', 'you told me', 'you said', 'you mentioned', 'you answered', 'your last answer', 'your answer before'];
 
 // A day like "yesterday" only counts as a question about the past when one of these is also there.
 // So "who won the match yesterday?" still searches the web.
@@ -43,20 +44,35 @@ export async function getRecall(userId, chatId, userText, recentTexts, timezone)
     }
   }
 
-  // Remove repeated texts and stop when we reach the token limit (1 token is about 4 characters)
-  const snippets = [];
+  // Remove repeated texts (the model already sees the ones from this chat)
+  const fresh = [];
   const seenTexts = recentTexts.slice();
-  let tokens = 0;
   for (const item of found) {
     if (seenTexts.includes(item.text)) continue;
-    tokens = tokens + Math.ceil(item.text.length / 4);
-    if (tokens > RECALL_MAX_TOKENS) break;
     seenTexts.push(item.text);
+    fresh.push(item);
+  }
+
+  // For a question about the past, also load what the assistant answered back then
+  const askingAboutPast = wantsRecall(userText, timezone);
+  const answers = await Promise.all(
+    fresh.map((item) => (askingAboutPast ? getAnswerAfter(item.chatId, item.createdAt) : null))
+  );
+
+  // Stop when we reach the token limit (1 token is about 4 characters)
+  const snippets = [];
+  let tokens = 0;
+  for (let i = 0; i < fresh.length; i++) {
+    const item = fresh[i];
+    const answerText = answers[i] ? answers[i].text.slice(0, RECALL_ANSWER_CHARS) : '';
+    tokens = tokens + Math.ceil((item.text.length + answerText.length) / 4);
+    if (tokens > RECALL_MAX_TOKENS) break;
     snippets.push({
       chatId: item.chatId,
       role: item.role,
       text: item.text,
       createdAt: item.createdAt,
+      answer: answerText,
     });
   }
   return snippets;

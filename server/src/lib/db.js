@@ -106,7 +106,6 @@ export async function insertMessage(message) {
     ON CONFLICT (id) DO NOTHING`;
 }
 
-// The latest user messages of this user, from all chats except the current one
 // The user's own messages (from all their chats) written between start and end (ISO times)
 export async function selectUserMessagesInRange(userId, start, end, limit) {
   const sql = getSql();
@@ -119,6 +118,17 @@ export async function selectUserMessagesInRange(userId, start, end, limit) {
   return rows.map(rowToMessage);
 }
 
+// The assistant reply that came right after a message in the same chat. Returns null if there is none.
+export async function selectAnswerAfter(chatId, afterTime) {
+  const sql = getSql();
+  const rows = await sql`SELECT id, chat_id, role, text, search, created_at FROM messages
+    WHERE chat_id = ${chatId} AND role = 'assistant' AND created_at > ${afterTime}
+    ORDER BY created_at ASC LIMIT 1`;
+  if (rows.length === 0) return null;
+  return rowToMessage(rows[0]);
+}
+
+// The latest user messages of this user, from all chats except the current one
 export async function selectUserMessagesFromOtherChats(userId, chatId, limit) {
   const sql = getSql();
   const rows = await sql`SELECT m.id, m.chat_id, m.role, m.text, m.created_at

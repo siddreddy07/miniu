@@ -5,6 +5,7 @@ export type Snippet = {
   role: string
   text: string
   createdAt: string
+  answer?: string
 }
 
 // Makes a date like "Nov 12, 2:03 PM"
@@ -25,7 +26,7 @@ export default function MemoryBadges({ snippets }: { snippets?: Snippet[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {snippets.map((snippet, index) => (
-        <Badge key={index} variant="outline" title={snippet.text}>
+        <Badge key={index} variant="outline" title={snippet.answer ? snippet.text + " → " + snippet.answer : snippet.text}>
           From earlier chat · {formatDate(snippet.createdAt)}
         </Badge>
       ))}

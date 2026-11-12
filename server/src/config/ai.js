@@ -22,7 +22,8 @@ export const SEARCH_TIMEOUT_SECONDS = 6;
 export const SEARCH_CACHE_MINUTES = 10;
 
 // Memory settings
-export const RECALL_MAX_TOKENS = 600;
+export const RECALL_MAX_TOKENS = 900;
+export const RECALL_ANSWER_CHARS = 500;
 export const RECALL_RECENT_LIMIT = 5;
 export const RECALL_SEMANTIC_LIMIT = 2;
 export const RECALL_DAY_LIMIT = 15;

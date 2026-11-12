@@ -8,6 +8,7 @@ import {
   selectChatMessages,
   selectUserMessagesFromOtherChats,
   selectUserMessagesInRange,
+  selectAnswerAfter,
 } from '../lib/db.js';
 import { embedText } from '../lib/embeddings.js';
 import { saveVector, querySimilar } from '../lib/vectorStore.js';
@@ -105,6 +106,16 @@ export async function getUserMessagesInRange(userId, start, end, limit) {
   } catch (error) {
     console.log('Could not read messages by date:', error.message);
     return [];
+  }
+}
+
+// The answer the assistant gave to an old message. Returns null if there is none.
+export async function getAnswerAfter(chatId, afterTime) {
+  try {
+    return await selectAnswerAfter(chatId, afterTime);
+  } catch (error) {
+    console.log('Could not read the old answer:', error.message);
+    return null;
   }
 }
 
