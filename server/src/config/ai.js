@@ -11,3 +11,12 @@ export const MAX_HISTORY = 12;
 
 // Max tokens the model may write in one answer
 export const MAX_OUTPUT_TOKENS = 1024;
+
+// Max number of steps (search, then answer) for one reply
+export const MAX_STEPS = 3;
+
+// Search tool limits. The model is small, so we keep tool output short.
+export const SEARCH_MAX_RESULTS = 5;
+export const SEARCH_SNIPPET_LENGTH = 300;
+export const SEARCH_TIMEOUT_SECONDS = 6;
+export const SEARCH_CACHE_MINUTES = 10;
