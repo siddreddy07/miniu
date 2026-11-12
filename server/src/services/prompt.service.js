@@ -1,13 +1,31 @@
+// Makes a date like "Nov 12, 2026, 2:03 PM"
+export function formatDate(isoDate) {
+  return new Date(isoDate).toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+// Makes the text block that lists what the user said in earlier chats
+export function buildMemoryBlock(snippets) {
+  if (!snippets || snippets.length === 0) return '';
+
+  const lines = ['Earlier chats (the user said these before, use them only if they help):'];
+  for (const snippet of snippets) {
+    lines.push('- [' + formatDate(snippet.createdAt) + '] ' + snippet.role + ': ' + snippet.text);
+  }
+  return lines.join('\n');
+}
+
 // Builds the system prompt that tells the model how to behave
-export function buildSystemPrompt() {
-  const now = new Date();
+export function buildSystemPrompt(snippets) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const dateText = now.toLocaleString('en-US', {
+  const dateText = new Date().toLocaleString('en-US', {
     dateStyle: 'full',
     timeStyle: 'short',
   });
 
-  return [
+  const lines = [
     'You are a helpful, friendly chat assistant.',
     'Current date and time: ' + dateText + ' (' + timezone + ').',
     '',
@@ -22,5 +40,13 @@ export function buildSystemPrompt() {
     'Style:',
     '- Keep answers short and clear.',
     '- Be honest. If you do not know something, say so.',
-  ].join('\n');
+  ];
+
+  const memoryBlock = buildMemoryBlock(snippets);
+  if (memoryBlock !== '') {
+    lines.push('');
+    lines.push(memoryBlock);
+  }
+
+  return lines.join('\n');
 }

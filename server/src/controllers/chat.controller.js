@@ -14,7 +14,7 @@ export async function chatController(req, res) {
   }
 
   try {
-    const stream = await startChat(parsed.data.messages);
+    const stream = await startChat(parsed.data.id, parsed.data.messages);
     await pipeUIMessageStreamToResponse({ response: res, stream: stream });
   } catch (error) {
     console.log('Chat error:', error.message);
