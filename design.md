@@ -55,6 +55,9 @@ Why not SQLite: a local file does not survive serverless or ephemeral hosting an
 **Cohere embeddings with separate document and query modes.**
 Cohere's models are trained for retrieval, using `search_document` when storing and `search_query` when searching. Tradeoff: one extra network call per search.
 
+**What Pinecone stores.**
+One record per user message. Id: `user-<chatId>-<timestamp>`. Values: the 1024-number Cohere vector. Metadata: `messageId` (links back to the Neon row), `chatId`, `role`, `createdAt`, `text`. Recall filters out the current chat with `chatId != current`.
+
 **Only user messages are embedded.**
 "What did I ask" is about the user's own words. Embedding assistant text would dilute the matches. The assistant message is still saved in Neon.
 
