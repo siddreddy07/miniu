@@ -7,7 +7,7 @@ import {
 } from 'ai';
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
-import { saveMessage, indexMessage } from './memory.service.js';
+import { createChat, saveMessage, indexMessage } from './memory.service.js';
 import { getRecall } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
@@ -32,16 +32,17 @@ function getErrorMessage(error) {
   return 'The AI had a problem. Please try again.';
 }
 
-export async function startChat(chatId, messages) {
+export async function startChat(userId, chatId, messages) {
   const startTime = Date.now();
   const lastMessage = messages[messages.length - 1];
   const userText = getText(lastMessage);
 
-  // 1. Save the user message
-  const userMessage = await saveMessage(chatId, 'user', userText, lastMessage.id);
+  // 1. Make sure the chat exists, then save the user message
+  await createChat(userId, chatId, userText);
+  const userMessage = await saveMessage(userId, chatId, 'user', userText, lastMessage.id);
 
   // 2. Find older messages from other chats
-  const snippets = await getRecall(chatId, userText);
+  const snippets = await getRecall(userId, chatId, userText);
 
   // 3. Ask the model (only the latest messages, to keep it fast)
   const recentMessages = messages.slice(-MAX_HISTORY);
@@ -68,7 +69,7 @@ export async function startChat(chatId, messages) {
     // 4. When the reply is done: save it and index the question
     onFinish: async ({ text }) => {
       console.log('Chat done in ' + (Date.now() - startTime) + 'ms, memory used: ' + snippets.length);
-      await saveMessage(chatId, 'assistant', text);
+      await saveMessage(userId, chatId, 'assistant', text);
       indexMessage(userMessage);
     },
   });

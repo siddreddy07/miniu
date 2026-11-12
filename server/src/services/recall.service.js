@@ -14,11 +14,11 @@ function wantsRecall(text) {
 
 // Returns older messages: [{ chatId, role, text, createdAt }]
 // Returns [] if there is nothing good to add.
-export async function getRecall(chatId, userText) {
-  let found = await searchSimilarMessages(userText, chatId, RECALL_SEMANTIC_LIMIT);
+export async function getRecall(userId, chatId, userText) {
+  let found = await searchSimilarMessages(userId, chatId, userText, RECALL_SEMANTIC_LIMIT);
 
   if (wantsRecall(userText)) {
-    const recent = await getUserMessagesFromOtherChats(chatId, RECALL_RECENT_LIMIT);
+    const recent = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
     found = recent.concat(found);
   }
 

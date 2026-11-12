@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { chatController } from '../controllers/chat.controller.js';
+import {
+  chatController,
+  listChatsController,
+  chatMessagesController,
+} from '../controllers/chat.controller.js';
 
 export const chatRouter = Router();
 
@@ -8,3 +12,5 @@ chatRouter.get('/health', (req, res) => {
 });
 
 chatRouter.post('/api/chat', chatController);
+chatRouter.get('/api/chats', listChatsController);
+chatRouter.get('/api/chats/:id/messages', chatMessagesController);
