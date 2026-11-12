@@ -34,15 +34,17 @@ export async function getChats(userId) {
   }
 }
 
-// Is this chat owned by this user? Used to stop people writing into other people's chats.
-// If the database is down nothing can be saved anyway, so we say yes and let the chat work.
-export async function isChatOwner(userId, chatId) {
+// Looks at the chat in the URL.
+// ok is false if the chat belongs to someone else. createdAt is when the chat was first made.
+// If the database is down nothing can be saved anyway, so we say ok and let the chat work.
+export async function checkChat(userId, chatId) {
   try {
     const chat = await selectChat(chatId, userId);
-    return chat !== null;
+    if (!chat) return { ok: false, createdAt: null };
+    return { ok: true, createdAt: chat.createdAt };
   } catch (error) {
-    console.log('Could not check chat owner:', error.message);
-    return true;
+    console.log('Could not check chat:', error.message);
+    return { ok: true, createdAt: null };
   }
 }
 
@@ -99,11 +101,12 @@ export async function getUserMessagesFromOtherChats(userId, chatId, limit) {
 export async function indexMessage(message) {
   try {
     const vector = await embedText(message.text, 'search_document');
-    // Vector id looks like: <userId>-<timestamp>
-    const vectorId = message.userId + '-' + Date.parse(message.createdAt);
-    await saveVector(vectorId, vector, {
-      userId: message.userId,
+    // Vector id looks like: <userId>:<chat created time>:<message time>
+    const chatTime = Date.parse(message.chatCreatedAt);
+    const vectorId = message.userId + ':' + chatTime + ':' + Date.parse(message.createdAt);
+    await saveVector(message.userId, vectorId, vector, {
       chatId: message.chatId,
+      chatCreatedAt: message.chatCreatedAt,
       role: message.role,
       createdAt: message.createdAt,
       text: message.text,

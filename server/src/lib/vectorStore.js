@@ -1,27 +1,29 @@
 // Pinecone vector database: finds messages that mean something similar.
+// Every user has their own namespace (the namespace is the userId),
+// so one user's vectors are completely separate from another user's.
 import { Pinecone } from '@pinecone-database/pinecone';
 
-function getIndex() {
+function getUserIndex(userId) {
   const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
-  return pinecone.index(process.env.PINECONE_INDEX_NAME);
+  return pinecone.index(process.env.PINECONE_INDEX_NAME).namespace(userId);
 }
 
-// Saves one message vector. metadata = { userId, chatId, role, createdAt, text }
-export async function saveVector(id, vector, metadata) {
-  const index = getIndex();
+// Saves one message vector in the user's namespace.
+// metadata = { chatId, chatCreatedAt, role, createdAt, text }
+export async function saveVector(userId, id, vector, metadata) {
+  const index = getUserIndex(userId);
   await index.upsert({ records: [{ id: id, values: vector, metadata: metadata }] });
 }
 
-// Finds the most similar messages of THIS user, from any of their chats.
-// The only filter is the userId. More filters (like dates) can be added here later.
-// Returns: [{ userId, chatId, role, text, createdAt, score }]
+// Finds the most similar messages in the user's namespace, from any of their chats.
+// No filter is needed here. More filters (like dates) can be added later.
+// Returns: [{ chatId, chatCreatedAt, role, text, createdAt, score }]
 export async function querySimilar(vector, userId, topK) {
-  const index = getIndex();
+  const index = getUserIndex(userId);
   const response = await index.query({
     vector: vector,
     topK: topK,
     includeMetadata: true,
-    filter: { userId: { $eq: userId } },
   });
   return response.matches.map((match) => ({ ...match.metadata, score: match.score }));
 }

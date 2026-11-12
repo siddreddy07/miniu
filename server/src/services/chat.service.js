@@ -7,7 +7,7 @@ import {
 } from 'ai';
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
-import { createUser, createChat, isChatOwner, saveMessage, indexMessage } from './memory.service.js';
+import { createUser, createChat, checkChat, saveMessage, indexMessage } from './memory.service.js';
 import { getRecall, wantsRecall } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
@@ -42,13 +42,16 @@ export async function startChat(userId, chatId, messages) {
   await createChat(userId, chatId, userText);
 
   // The chat id comes from the URL, so check the chat really belongs to this user
-  if (!(await isChatOwner(userId, chatId))) {
+  const chatInfo = await checkChat(userId, chatId);
+  if (!chatInfo.ok) {
     const error = new Error('This chat belongs to someone else');
     error.statusCode = 403;
     throw error;
   }
 
   const userMessage = await saveMessage(userId, chatId, 'user', userText, lastMessage.id);
+  // When the chat was first created (used in the Pinecone vector id)
+  userMessage.chatCreatedAt = chatInfo.createdAt || userMessage.createdAt;
 
   // Only the latest messages go to the model, to keep it fast
   const recentMessages = messages.slice(-MAX_HISTORY);
