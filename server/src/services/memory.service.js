@@ -66,13 +66,15 @@ export async function getConversation(userId, chatId) {
   return { chat: chat, messages: messages };
 }
 
-export async function saveMessage(userId, chatId, role, text, id) {
+// search is optional: the web search the answer used, { query, results }
+export async function saveMessage(userId, chatId, role, text, id, search) {
   const message = {
     id: id || randomUUID(),
     userId: userId,
     chatId: chatId,
     role: role,
     text: text,
+    search: search || null,
     createdAt: new Date().toISOString(),
   };
 

@@ -59,6 +59,9 @@ export async function startChat(userId, chatId, messages) {
 
   const systemPrompt = buildSystemPrompt(snippets);
 
+  // The web search result of this answer, saved so the source badges survive a reload
+  let search = null;
+
   const result = streamText({
     model: model,
     system: systemPrompt,
@@ -75,10 +78,16 @@ export async function startChat(userId, chatId, messages) {
       }
       return {};
     },
+    onChunk: ({ chunk }) => {
+      if (chunk.type === 'tool-result' && chunk.toolName === 'webSearch' && chunk.output.results) {
+        search = chunk.output;
+      }
+    },
     // 4. When the reply is done: save it and index the question
     onFinish: async ({ text }) => {
       console.log('Chat done in ' + (Date.now() - startTime) + 'ms, memory used: ' + snippets.length);
-      await saveMessage(userId, chatId, 'assistant', text);
+      // If the AI failed, the text is empty and there is nothing to save
+      if (text) await saveMessage(userId, chatId, 'assistant', text, null, search);
       indexMessage(userMessage);
     },
   });

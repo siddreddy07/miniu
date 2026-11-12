@@ -16,6 +16,7 @@ function rowToMessage(row) {
     chatId: row.chat_id,
     role: row.role,
     text: row.text,
+    search: row.search || null,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -46,6 +47,9 @@ export async function createTables() {
     text TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
+
+  // The web search an answer used (query and results), so the source badges can come back later
+  await sql`ALTER TABLE messages ADD COLUMN IF NOT EXISTS search JSONB`;
 
   await sql`CREATE INDEX IF NOT EXISTS messages_chat_idx ON messages (chat_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS chats_user_idx ON chats (user_id, created_at DESC)`;
@@ -90,15 +94,15 @@ export async function selectChats(userId) {
 // All messages of one chat, oldest first. Check the chat belongs to the user BEFORE calling this.
 export async function selectChatMessages(chatId) {
   const sql = getSql();
-  const rows = await sql`SELECT id, chat_id, role, text, created_at FROM messages
+  const rows = await sql`SELECT id, chat_id, role, text, search, created_at FROM messages
     WHERE chat_id = ${chatId} ORDER BY created_at ASC`;
   return rows.map(rowToMessage);
 }
 
 export async function insertMessage(message) {
   const sql = getSql();
-  await sql`INSERT INTO messages (id, chat_id, role, text, created_at)
-    VALUES (${message.id}, ${message.chatId}, ${message.role}, ${message.text}, ${message.createdAt})
+  await sql`INSERT INTO messages (id, chat_id, role, text, search, created_at)
+    VALUES (${message.id}, ${message.chatId}, ${message.role}, ${message.text}, ${message.search ? JSON.stringify(message.search) : null}, ${message.createdAt})
     ON CONFLICT (id) DO NOTHING`;
 }
 

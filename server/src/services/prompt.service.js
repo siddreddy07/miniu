@@ -32,7 +32,7 @@ export function buildSystemPrompt(snippets) {
     'Web search rules:',
     '- Use the webSearch tool only for recent, specific or uncertain facts.',
     '- Do not search for greetings, small talk or things you know well.',
-    '- Search at most twice. Use a short query (a few words). You cannot open links, only read the search results.',
+    '- Search ONCE. Search a second time only if the first results are useless. Use a short query (a few words). You cannot open links, only read the search results.',
     '- When you use search results, cite them like [1], [2]. The number is the position of the result in the list.',
     '- If the results do not answer the question, say so.',
     '- If the search tool returns an error, tell the user the search failed. Then answer only what you are sure about.',
