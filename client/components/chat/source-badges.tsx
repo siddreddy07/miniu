@@ -1,3 +1,5 @@
+import { ExternalLinkIcon } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
 
 type Result = { title: string; url: string }
@@ -11,6 +13,7 @@ function getDomain(url: string) {
   }
 }
 
+// One clickable chip for each web result. The number matches [1], [2] in the answer.
 export default function SourceBadges({ results }: { results: Result[] }) {
   if (!results || results.length === 0) return null
 
@@ -19,7 +22,8 @@ export default function SourceBadges({ results }: { results: Result[] }) {
       {results.map((result, index) => (
         <Badge
           key={result.url}
-          variant="secondary"
+          variant="outline"
+          className="h-6 cursor-pointer gap-1.5 bg-background px-2 hover:bg-muted"
           render={
             <a
               href={result.url}
@@ -29,7 +33,9 @@ export default function SourceBadges({ results }: { results: Result[] }) {
             />
           }
         >
-          [{index + 1}] {getDomain(result.url)}
+          <span className="font-semibold text-primary">{index + 1}</span>
+          <span className="max-w-32 truncate">{getDomain(result.url)}</span>
+          <ExternalLinkIcon className="text-muted-foreground" />
         </Badge>
       ))}
     </div>

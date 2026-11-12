@@ -6,6 +6,7 @@ import { DefaultChatTransport, type UIMessage } from "ai"
 
 import ToolCall, { type SearchPart } from "@/components/chat/tool-call"
 import SourceBadges from "@/components/chat/source-badges"
+import Markdown from "@/components/chat/markdown"
 import MemoryBadges, { type Snippet } from "@/components/chat/memory-badges"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
@@ -19,6 +20,19 @@ import {
 } from "@/components/ui/message-scroller"
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL + "/api/chat"
+
+// Gets the search results of a message, so [1] in the answer can link to result 1.
+// If the model searched twice, we use the last search.
+function getSources(message: UIMessage) {
+  let sources: { title: string; url: string }[] = []
+  for (const part of message.parts) {
+    if (part.type === "tool-webSearch") {
+      const searchPart = part as unknown as SearchPart
+      sources = (searchPart.output?.results ?? sources) as typeof sources
+    }
+  }
+  return sources
+}
 
 type ChatProps = {
   userId: string
@@ -80,10 +94,20 @@ export default function Chat({
                     >
                       {message.parts.map((part, index) => {
                         if (part.type === "text") {
+                          // Your own messages stay plain text
+                          if (message.role === "user") {
+                            return (
+                              <p key={index} className="whitespace-pre-wrap">
+                                {part.text}
+                              </p>
+                            )
+                          }
                           return (
-                            <p key={index} className="whitespace-pre-wrap">
-                              {part.text}
-                            </p>
+                            <Markdown
+                              key={index}
+                              text={part.text}
+                              sources={getSources(message)}
+                            />
                           )
                         }
                         if (part.type === "data-memory") {
