@@ -5,7 +5,7 @@ import {
   createUIMessageStream,
   isStepCount,
 } from 'ai';
-import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_STEPS } from '../config/ai.js';
+import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
 import { saveMessage, indexMessage } from './memory.service.js';
 import { getRecall } from './recall.service.js';
@@ -19,6 +19,9 @@ function getText(message) {
   }
   return text;
 }
+
+// Added to the prompt on the last step
+const FINAL_STEP_NOTE = '\n\nNow write the final answer from what you have. Do not call any tool.';
 
 // Shows a simple message to the user when the AI fails
 function getErrorMessage(error) {
@@ -44,16 +47,22 @@ export async function startChat(chatId, messages) {
   const recentMessages = messages.slice(-MAX_HISTORY);
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
 
+  const systemPrompt = buildSystemPrompt(snippets);
+
   const result = streamText({
     model: model,
-    system: buildSystemPrompt(snippets),
+    system: systemPrompt,
     messages: modelMessages,
     tools: tools,
-    stopWhen: isStepCount(MAX_STEPS),
+    stopWhen: isStepCount(MAX_TOOL_CALLS + 1),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
-    // On the last step the tool is turned off, so the model must write an answer
+    // Think a little, and keep the thinking out of the answer
+    providerOptions: { groq: { reasoningFormat: 'parsed', reasoningEffort: 'low' } },
+    // After the last allowed tool call, we remove the tool so the model must write an answer
     prepareStep: ({ stepNumber }) => {
-      if (stepNumber >= MAX_STEPS - 1) return { toolChoice: 'none' };
+      if (stepNumber >= MAX_TOOL_CALLS) {
+        return { activeTools: [], system: systemPrompt + FINAL_STEP_NOTE };
+      }
       return {};
     },
     // 4. When the reply is done: save it and index the question
@@ -68,6 +77,7 @@ export async function startChat(chatId, messages) {
     stream: result.stream,
     tools: tools,
     sendStart: false,
+    sendReasoning: false,
     onError: getErrorMessage,
   });
 
