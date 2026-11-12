@@ -8,7 +8,7 @@ import {
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
 import { createUser, createChat, checkChat, saveMessage, indexMessage } from './memory.service.js';
-import { getRecall, wantsRecall } from './recall.service.js';
+import { getRecall, wantsRecall, wantsFresh } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
 // Gets the plain text of a message
@@ -64,8 +64,11 @@ export async function startChat(userId, chatId, messages, timezone) {
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
 
   // For a question about the past, the model answers from memory and does not search
-  const askingAboutPast = wantsRecall(userText, timezone);
-  const systemPrompt = buildSystemPrompt(snippets, askingAboutPast);
+  // If the user also asks "any updates?", the search stays on to check what is true now
+  const wantsPast = wantsRecall(userText, timezone);
+  const askingAboutPast = wantsPast && !wantsFresh(userText);
+  const askingBoth = wantsPast && wantsFresh(userText);
+  const systemPrompt = buildSystemPrompt(snippets, askingAboutPast, askingBoth);
 
   // The web search result of this answer, saved so the source badges survive a reload
   let search = null;

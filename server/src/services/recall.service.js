@@ -17,6 +17,14 @@ function hasWord(text, words) {
   return false;
 }
 
+// Words that say the user also wants the CURRENT state: "any updates?", "has it changed?", "still the same?"
+// For these the web search stays on, because only the web can say what is true now.
+const FRESH_PATTERN = /\b(updates?|updated|changed?|changes|latest|still|anymore|currently|any news|newer)\b/;
+
+export function wantsFresh(text) {
+  return FRESH_PATTERN.test(text.toLowerCase());
+}
+
 // Exported because the chat service also needs to know if this is a question about the past
 export function wantsRecall(text, timezone) {
   const lowerText = text.toLowerCase();
@@ -38,9 +46,9 @@ export async function getRecall(userId, chatId, userText, recentTexts, timezone)
 
     if (dayMessages.length > 0) {
       found = dayMessages;
-    } else {
-      const recent = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
-      found = recent.concat(found);
+    } else if (found.length === 0) {
+      // Nothing matched by meaning, so show the latest messages from other chats
+      found = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
     }
   }
 

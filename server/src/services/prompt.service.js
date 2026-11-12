@@ -20,7 +20,7 @@ export function buildMemoryBlock(snippets) {
 
 // Builds the system prompt that tells the model how to behave
 // askingAboutPast is true when the user asks about their own earlier chats
-export function buildSystemPrompt(snippets, askingAboutPast) {
+export function buildSystemPrompt(snippets, askingAboutPast, askingBoth) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dateText = new Date().toLocaleString('en-US', {
     dateStyle: 'full',
@@ -53,6 +53,15 @@ export function buildSystemPrompt(snippets, askingAboutPast) {
     lines.push('The user is asking about their own earlier chats. Do NOT use the webSearch tool for this.');
     lines.push('Answer only from the Earlier chats list. It shows what the user said before, with dates, and what you answered then.');
     lines.push('If the list is missing or does not help, say you cannot find it in the earlier chats.');
+    lines.push('You did not check the web now, so never say whether anything changed since then. If asked, say you have not checked.');
+  }
+
+  // Past + "any updates?": say what was said before, then check the web once for what is true now
+  if (askingBoth) {
+    lines.push('');
+    lines.push('The user asks about an earlier chat AND whether things changed since. First say what was said before, using the Earlier chats list and its dates.');
+    lines.push('Then use the webSearch tool once to check the current situation, and say clearly if it changed or not.');
+    lines.push('Never claim "nothing changed" unless the search result shows it.');
   }
 
   const memoryBlock = buildMemoryBlock(snippets);
