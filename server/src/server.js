@@ -12,6 +12,11 @@ try {
   console.log('Database not ready, memory will not work:', error.message);
 }
 
-app.listen(port, () => {
+app.listen(port, (error) => {
+  if (error) {
+    console.log('Could not start the server on port ' + port + ':', error.message);
+    console.log('Maybe an old server is still running on this port. Stop it and try again.');
+    return;
+  }
   console.log('Server running on http://localhost:' + port);
 });
