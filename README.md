@@ -28,7 +28,7 @@ npm run dev
 | `DATABASE_URL` | Neon Postgres connection string | for memory |
 | `COHERE_API_KEY` | Cohere key (embeddings) | for memory |
 | `PINECONE_API_KEY` | Pinecone key | for memory |
-| `PINECONE_INDEX_NAME` | Pinecone index, 1024 dimensions, cosine | for memory |
+| `PINECONE_INDEX_NAME` | Pinecone index name. Create it as a plain dense vector index, 1024 dimensions, cosine (not a document-schema index) | for memory |
 
 Without the memory variables the chat still works, it just has no memory.
 

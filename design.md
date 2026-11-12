@@ -37,7 +37,7 @@ Server layout: `config` (env, AI settings), `routes`, `controllers` (HTTP only),
 Streaming and tool-call states are built in, so no hand-rolled SSE parsing. Tradeoff: tied to the SDK's message format. Worth the time saved.
 
 **Groq as provider.**
-Very low time to first token, which is the "fast" requirement. Tradeoff: open models follow long instructions less well, so the system prompt is short and strict. The model id lives in `config/ai.js`, a one-line swap.
+Very low time to first token, which is the "fast" requirement. Tradeoff: open models follow long instructions less well, so the system prompt is short and strict. The model id lives in `config/ai.js`, a one-line swap. `llama-3.3-70b-versatile` no longer exists on Groq, so the app uses `openai/gpt-oss-120b`. In testing, `gpt-oss-20b` and `qwen3.8-27b` sometimes called a tool after tools were switched off, which Groq rejects with a 400, while the 120b followed the rules. Its thinking is requested separately and not shown.
 
 **Express instead of Next.js route handlers.**
 Keeps the agent separate from the UI so it can be reused by other clients (for example a Mac app). Tradeoff: two processes and CORS.
@@ -82,7 +82,7 @@ Tool description and input are short and strict (query 2 to 200 chars), tool out
 **Stream order matters.**
 The server sends the `start` chunk first, then the `data-memory` part, then the model stream. In testing, the browser dropped a memory part that arrived before `start`.
 
-**Max 3 steps per answer.**
+**Max 2 tool calls per answer.**
 Stops search loops and keeps latency predictable. Tradeoff: very deep research gets a shorter answer.
 
 **Evidence as badges.**
@@ -118,4 +118,4 @@ Changes made while building, each logged as a prompt: simpler beginner-level cod
 
 AI SDK v7 differences handled: `stepCountIs` is now `isStepCount`, and the standalone `toUIMessageStream` and `pipeUIMessageStreamToResponse` are used instead of the deprecated methods on the result.
 
-Verification status: the server routes, validation, Tavily search with caching, Neon table and reads/writes, Cohere embeddings, and the client build were tested. The full model reply (Groq), Pinecone upsert/query and the cross-chat recall check were not run, because the Groq key was missing and Pinecone rejected its API key at the time of the build.
+Verification status: tested live with real keys. Hi (no search), search with citations (Bitcoin price, F1 winner), and recall in a new chat all worked, including Pinecone matching a Kyoto trip question to an earlier chat that had no shared keywords. The 1.5 second first-token target was not measured. Note: the Pinecone index must be a plain 1024 dimension cosine vector index. An index created with a document schema rejects normal vector writes.
