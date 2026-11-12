@@ -59,7 +59,7 @@ Cohere's models are trained for retrieval, using `search_document` when storing 
 Three tables: `users` (id), `chats` (id, user_id, title, created_at) and `messages` (id, chat_id, role, text, created_at). One user has many chats, and one chat has many messages. A message belongs only to its chat, so to find a user's messages we go through the chat. The user id is an anonymous id the browser makes and keeps in localStorage (a real login is future work). `POST /api/chats/:chatId/messages` takes the chat id from the URL and the user id from the body, finds the chat for that user (404 if it is not theirs) and returns the chat with all its messages. There is no pagination yet.
 
 **What Pinecone stores.**
-One record per user message. Id: `user-<chatId>-<timestamp>`. Values: the 1024-number Cohere vector. Metadata: `messageId` (links back to the Neon row), `chatId`, `role`, `createdAt`, `text`. Recall filters out the current chat with `chatId != current`.
+One record per user message. Id: `<userId>-<timestamp>`. Values: the 1024-number Cohere vector. Metadata: `userId`, `chatId`, `role`, `createdAt`, `text`. The only search filter is `userId`, so recall can reach any earlier chat of that user, not just one chat. `chatId` is kept as plain information so more filters (for example dates, which a "what did I ask yesterday" question needs) can be added later. Messages the model already sees in the current chat are skipped when recalling.
 
 **Only user messages are embedded.**
 "What did I ask" is about the user's own words. Embedding assistant text would dilute the matches. The assistant message is still saved in Neon.
