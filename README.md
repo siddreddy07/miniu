@@ -16,7 +16,6 @@ You need Node 20+.
 cd server
 npm install
 cp .env.example .env     # then fill in the keys
-npm run setup-db         # creates the messages table in Neon (once)
 npm run dev
 ```
 
