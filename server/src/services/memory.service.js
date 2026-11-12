@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
+  insertUser,
   insertChat,
   insertMessage,
+  selectChat,
   selectChats,
   selectChatMessages,
   selectUserMessagesFromOtherChats,
@@ -32,13 +34,24 @@ export async function getChats(userId) {
   }
 }
 
-export async function getChatMessages(userId, chatId) {
+// Makes the user row the first time we see this user
+export async function createUser(userId) {
   try {
-    return await selectChatMessages(chatId, userId);
+    await insertUser(userId);
   } catch (error) {
-    console.log('Could not read chat messages:', error.message);
-    return [];
+    console.log('Could not create user:', error.message);
   }
+}
+
+// Finds one conversation of this user and all its messages.
+// Returns null if the conversation does not exist or belongs to someone else.
+// No try/catch here: the controller turns a database error into a 500.
+export async function getConversation(userId, chatId) {
+  const chat = await selectChat(chatId, userId);
+  if (!chat) return null;
+
+  const messages = await selectChatMessages(chatId);
+  return { chat: chat, messages: messages };
 }
 
 export async function saveMessage(userId, chatId, role, text, id) {

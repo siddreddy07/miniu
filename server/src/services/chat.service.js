@@ -7,7 +7,7 @@ import {
 } from 'ai';
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
-import { createChat, saveMessage, indexMessage } from './memory.service.js';
+import { createUser, createChat, saveMessage, indexMessage } from './memory.service.js';
 import { getRecall } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
@@ -37,7 +37,8 @@ export async function startChat(userId, chatId, messages) {
   const lastMessage = messages[messages.length - 1];
   const userText = getText(lastMessage);
 
-  // 1. Make sure the chat exists, then save the user message
+  // 1. Make sure the user and the chat exist, then save the user message
+  await createUser(userId);
   await createChat(userId, chatId, userText);
   const userMessage = await saveMessage(userId, chatId, 'user', userText, lastMessage.id);
 

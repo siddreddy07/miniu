@@ -13,4 +13,4 @@ chatRouter.get('/health', (req, res) => {
 
 chatRouter.post('/api/chat', chatController);
 chatRouter.get('/api/chats', listChatsController);
-chatRouter.get('/api/chats/:id/messages', chatMessagesController);
+chatRouter.post('/api/chats/:chatId/messages', chatMessagesController);

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { pipeUIMessageStreamToResponse } from 'ai';
 import { startChat } from '../services/chat.service.js';
-import { getChats, getChatMessages } from '../services/memory.service.js';
+import { getChats, getConversation } from '../services/memory.service.js';
+
+const userBodySchema = z.object({
+  userId: z.string().min(1),
+});
 
 const bodySchema = z.object({
   id: z.string(),
@@ -31,8 +35,22 @@ export async function listChatsController(req, res) {
   res.json({ chats: chats });
 }
 
-// GET /api/chats/:id/messages - all messages of one chat
+// POST /api/chats/:chatId/messages - all messages of one conversation
+// The chat id is in the URL. The user id is in the body (the browser sends it from localStorage).
 export async function chatMessagesController(req, res) {
-  const messages = await getChatMessages(req.query.userId, req.params.id);
-  res.json({ messages: messages });
+  const parsed = userBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+
+  try {
+    const conversation = await getConversation(parsed.data.userId, req.params.chatId);
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+    res.json(conversation);
+  } catch (error) {
+    console.log('Could not load conversation:', error.message);
+    res.status(500).json({ error: 'Could not load the conversation' });
+  }
 }
