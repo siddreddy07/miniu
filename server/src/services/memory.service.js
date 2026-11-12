@@ -99,12 +99,11 @@ export async function getUserMessagesFromOtherChats(userId, chatId, limit) {
 export async function indexMessage(message) {
   try {
     const vector = await embedText(message.text, 'search_document');
-    // Vector id looks like: <userId>-<chatId>-<timestamp>
-    const vectorId = message.userId + '-' + message.chatId + '-' + Date.parse(message.createdAt);
+    // Vector id looks like: <userId>-<timestamp>
+    const vectorId = message.userId + '-' + Date.parse(message.createdAt);
     await saveVector(vectorId, vector, {
       userId: message.userId,
       chatId: message.chatId,
-      messageId: message.id,
       role: message.role,
       createdAt: message.createdAt,
       text: message.text,
@@ -114,11 +113,11 @@ export async function indexMessage(message) {
   }
 }
 
-// Finds older messages of this user (from other chats) that mean something similar
-export async function searchSimilarMessages(userId, chatId, text, limit) {
+// Finds older messages of this user (from any of their chats) that mean something similar
+export async function searchSimilarMessages(userId, text, limit) {
   try {
     const vector = await embedText(text, 'search_query');
-    const matches = await querySimilar(vector, userId, chatId, limit);
+    const matches = await querySimilar(vector, userId, limit);
     return matches.filter((match) => match.score >= RECALL_MIN_SCORE);
   } catch (error) {
     console.log('Could not search similar messages:', error.message);

@@ -50,11 +50,14 @@ export async function startChat(userId, chatId, messages) {
 
   const userMessage = await saveMessage(userId, chatId, 'user', userText, lastMessage.id);
 
-  // 2. Find older messages from other chats
-  const snippets = await getRecall(userId, chatId, userText);
-
-  // 3. Ask the model (only the latest messages, to keep it fast)
+  // Only the latest messages go to the model, to keep it fast
   const recentMessages = messages.slice(-MAX_HISTORY);
+
+  // 2. Find older messages of this user, but not the ones the model already sees
+  const recentTexts = recentMessages.map(getText);
+  const snippets = await getRecall(userId, chatId, userText, recentTexts);
+
+  // 3. Ask the model
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
 
   const systemPrompt = buildSystemPrompt(snippets);

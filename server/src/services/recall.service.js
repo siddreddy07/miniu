@@ -13,9 +13,11 @@ function wantsRecall(text) {
 }
 
 // Returns older messages: [{ chatId, role, text, createdAt }]
+// recentTexts are the messages the model already sees in this chat, so we skip them.
 // Returns [] if there is nothing good to add.
-export async function getRecall(userId, chatId, userText) {
-  let found = await searchSimilarMessages(userId, chatId, userText, RECALL_SEMANTIC_LIMIT);
+export async function getRecall(userId, chatId, userText, recentTexts) {
+  // The search covers all chats of this user, old ones and the current one
+  let found = await searchSimilarMessages(userId, userText, RECALL_SEMANTIC_LIMIT);
 
   if (wantsRecall(userText)) {
     const recent = await getUserMessagesFromOtherChats(userId, chatId, RECALL_RECENT_LIMIT);
@@ -24,7 +26,7 @@ export async function getRecall(userId, chatId, userText) {
 
   // Remove repeated texts and stop when we reach the token limit (1 token is about 4 characters)
   const snippets = [];
-  const seenTexts = [];
+  const seenTexts = recentTexts.slice();
   let tokens = 0;
   for (const item of found) {
     if (seenTexts.includes(item.text)) continue;
