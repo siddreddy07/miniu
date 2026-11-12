@@ -1,5 +1,5 @@
 import { getUserMessagesFromOtherChats, searchSimilarMessages } from './memory.service.js';
-import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT } from '../config/ai.js';
+import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT, RECALL_TIMEOUT_MS } from '../config/ai.js';
 
 const RECALL_WORDS = [
   'earlier',
@@ -47,26 +47,29 @@ export function limitTokens(snippets, maxTokens) {
   return result;
 }
 
-// Returns snippets from older chats: [{ chatId, role, text, createdAt }]
-// Returns [] when there is nothing good to add.
+// Finds snippets from older chats: [{ chatId, role, text, createdAt }]
+async function findSnippets(chatId, userText) {
+  // Both lookups run at the same time
+  const [semantic, recent] = await Promise.all([
+    searchSimilarMessages(userText, chatId, RECALL_SEMANTIC_LIMIT),
+    wantsRecall(userText) ? getUserMessagesFromOtherChats(chatId, RECALL_RECENT_LIMIT) : [],
+  ]);
+
+  const unique = removeDuplicates(recent.concat(semantic));
+  const snippets = unique.map((item) => ({
+    chatId: item.chatId,
+    role: item.role,
+    text: item.text,
+    createdAt: item.createdAt,
+  }));
+  return limitTokens(snippets, RECALL_MAX_TOKENS);
+}
+
+// Returns snippets, or [] if there is nothing good or it takes too long
 export async function getRecall(chatId, userText) {
+  const timeout = new Promise((resolve) => setTimeout(() => resolve([]), RECALL_TIMEOUT_MS));
   try {
-    const semantic = await searchSimilarMessages(userText, chatId, RECALL_SEMANTIC_LIMIT);
-
-    let all = semantic;
-    if (wantsRecall(userText)) {
-      const recent = await getUserMessagesFromOtherChats(chatId, RECALL_RECENT_LIMIT);
-      all = recent.concat(semantic);
-    }
-
-    const unique = removeDuplicates(all);
-    const snippets = unique.map((item) => ({
-      chatId: item.chatId,
-      role: item.role,
-      text: item.text,
-      createdAt: item.createdAt,
-    }));
-    return limitTokens(snippets, RECALL_MAX_TOKENS);
+    return await Promise.race([findSnippets(chatId, userText), timeout]);
   } catch (error) {
     console.log('Recall failed:', error.message);
     return [];

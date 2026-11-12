@@ -20,23 +20,32 @@ function getText(message) {
   return text;
 }
 
+// Turns an AI error into a short message the user can understand
+function friendlyError(error) {
+  const status = error.statusCode;
+  if (status === 429) return 'The AI is very busy right now. Please wait a few seconds and try again.';
+  if (status >= 500) return 'The AI service is having problems. Please try again soon.';
+  return 'Something went wrong with the AI. Please try again.';
+}
+
 // Runs one chat request and returns a UI message stream
 export async function startChat(chatId, messages) {
+  const startTime = Date.now();
   const lastMessage = messages[messages.length - 1];
   const userText = getText(lastMessage);
 
-  // 1. Save the user message
-  let userMessage = null;
-  if (lastMessage.role === 'user' && userText !== '') {
-    userMessage = await saveMessage(chatId, 'user', userText, lastMessage.id);
-  }
+  // Save the user message and look for older messages at the same time
+  const saveJob = lastMessage.role === 'user' && userText !== ''
+    ? saveMessage(chatId, 'user', userText, lastMessage.id)
+    : Promise.resolve(null);
+  const [userMessage, snippets] = await Promise.all([saveJob, getRecall(chatId, userText)]);
 
-  // 2. Look for older messages that can help
-  const snippets = await getRecall(chatId, userText);
-
-  // 3. Ask the model. Only send the latest messages to keep it fast and cheap.
+  // Only send the latest messages to keep it fast and cheap
   const recentMessages = messages.slice(-MAX_HISTORY);
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
+
+  let firstTokenTime = null;
+  let searched = false;
 
   const result = streamText({
     model: model,
@@ -52,8 +61,22 @@ export async function startChat(chatId, messages) {
       }
       return {};
     },
-    // 4. After the reply: save it and index it. We do not wait for this.
+    onChunk: ({ chunk }) => {
+      if (chunk.type === 'tool-call') searched = true;
+      if (chunk.type === 'text-delta' && firstTokenTime === null) {
+        firstTokenTime = Date.now() - startTime;
+      }
+    },
+    // After the reply: save it, index it and log. We do not make the user wait for this.
     onFinish: async ({ text }) => {
+      const totalTime = Date.now() - startTime;
+      console.log(
+        'chat ' + chatId.slice(0, 8) +
+        ' | first token: ' + firstTokenTime + 'ms' +
+        ' | total: ' + totalTime + 'ms' +
+        ' | search: ' + (searched ? 'yes' : 'no') +
+        ' | recall: ' + (snippets.length > 0 ? 'yes (' + snippets.length + ')' : 'no')
+      );
       if (text) await saveMessage(chatId, 'assistant', text);
       if (userMessage) indexMessage(userMessage);
     },
@@ -63,7 +86,7 @@ export async function startChat(chatId, messages) {
     stream: result.stream,
     tools: tools,
     sendStart: false,
-    onError: () => 'The AI service had a problem. Please try again.',
+    onError: friendlyError,
   });
 
   // Send the memory snippets first (only if we used some), then the model stream

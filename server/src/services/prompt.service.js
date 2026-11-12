@@ -35,6 +35,7 @@ export function buildSystemPrompt(snippets) {
     '- Search at most once or twice. Use a short query (a few words).',
     '- When you use search results, cite them like [1], [2]. The number is the position of the result in the list.',
     '- If the results do not answer the question, say so.',
+    '- If the search tool returns an error, tell the user the search failed. Then answer only what you are sure about.',
     '- Never make up links or facts.',
     '',
     'Style:',
