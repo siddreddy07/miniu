@@ -95,9 +95,6 @@ export function getDateRange(text, timezone) {
   if (lower.includes('yesterday')) {
     return makeRange(addDays(today.year, today.month, today.day, -1), 1, timezone, 'yesterday');
   }
-  if (/\btoday\b/.test(lower)) {
-    return makeRange(today, 1, timezone, 'today');
-  }
 
   // "3 days ago"
   const daysAgo = lower.match(/(\d+)\s+days?\s+ago/);
@@ -139,6 +136,11 @@ export function getDateRange(text, timezone) {
     let year = today.year;
     if (month > today.month || (month === today.month && day > today.day)) year = year - 1;
     return makeRange({ year: year, month: month, day: day }, 1, timezone, monthText + ' ' + day);
+  }
+
+  // "today" is checked last, so "what did I ask on 3 November, is it right today?" means 3 November
+  if (/\btoday\b/.test(lower)) {
+    return makeRange(today, 1, timezone, 'today');
   }
 
   return null;

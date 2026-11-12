@@ -8,7 +8,8 @@ const RECALL_WORDS = ['earlier', 'last time', 'did i ask', 'what did i', 'rememb
 
 // A day like "yesterday" only counts as a question about the past when one of these is also there.
 // So "who won the match yesterday?" still searches the web.
-const HISTORY_WORDS = ['i ask', 'i said', 'i told', 'i wrote', 'my chat', 'my question', 'our chat', 'we chat', 'we talk'];
+const HISTORY_WORDS = ['i ask', 'i said', 'i told', 'i wrote', 'my chat', 'my question', 'our chat', 'we chat', 'we talk',
+  'we shortlisted', 'we picked', 'we chose', 'we decided', 'we compared', 'we listed', 'you listed', 'you gave', 'you suggested', 'you told'];
 
 function hasWord(text, words) {
   for (const word of words) {
@@ -19,7 +20,7 @@ function hasWord(text, words) {
 
 // Words that say the user also wants the CURRENT state: "any updates?", "has it changed?", "still the same?"
 // For these the web search stays on, because only the web can say what is true now.
-const FRESH_PATTERN = /\b(updates?|updated|changed?|changes|latest|still|anymore|currently|any news|newer)\b/;
+const FRESH_PATTERN = /\b(updates?|updated|changed?|changes|latest|still|anymore|currently|any news|newer|since)\b/;
 
 export function wantsFresh(text) {
   return FRESH_PATTERN.test(text.toLowerCase());
