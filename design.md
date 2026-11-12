@@ -2,7 +2,7 @@
 
 A chat agent with one tool (web search) that answers fast, cites its sources, and remembers what you asked and when.
 
-> Draft written before implementation. It gets updated at the end so it matches the real code.
+> Updated at the end of the build to match the real code. Anything not built is listed under "What I would do next".
 
 ## 1. What the brief asks for, and how I read it
 
@@ -24,7 +24,7 @@ Browser (Next.js + shadcn)
      │                          3. build prompt (date, memory block)
      │                          4. streamText (Groq) + webSearch tool (Tavily)
      └──── UI message stream ◀──5. stream text, tool parts, data-memory part
-                                6. after reply: save assistant message, embed (Cohere), upsert (Pinecone)
+                                6. after reply: save assistant message (Neon); embed the user message (Cohere) and upsert it (Pinecone)
 ```
 
 One request, one stream. Text, tool calls and memory evidence all travel on the same stream, so the UI needs no second channel.
@@ -43,7 +43,7 @@ Very low time to first token, which is the "fast" requirement. Tradeoff: open mo
 Keeps the agent separate from the UI so it can be reused by other clients (for example a Mac app). Tradeoff: two processes and CORS.
 
 **Plain JavaScript on the server.**
-Fastest path for a small service, with zod validating every input at the edge. Tradeoff: no compile-time types, so JSDoc on exported functions and validation at boundaries.
+Fastest path for a small service, with zod validating the request body at the edge. The code is deliberately written in a simple, beginner-friendly style (plain functions, plain `if`, few abstractions). Tradeoff: no compile-time types, so validation happens at the boundary. Env values are read straight from `process.env` after `dotenv` loads `.env`, with no config layer on top.
 
 **Memory is a pre-step, not a tool.**
 The brief allows one tool. A pre-step also costs no extra model round trip. Tradeoff: the model cannot choose to recall, so cheap rules (recall-intent words) plus similarity decide.
@@ -54,6 +54,9 @@ Why not SQLite: a local file does not survive serverless or ephemeral hosting an
 
 **Cohere embeddings with separate document and query modes.**
 Cohere's models are trained for retrieval, using `search_document` when storing and `search_query` when searching. Tradeoff: one extra network call per search.
+
+**Only user messages are embedded.**
+"What did I ask" is about the user's own words. Embedding assistant text would dilute the matches. The assistant message is still saved in Neon.
 
 **Embedding and indexing happen after the reply.**
 Users never wait for them. Tradeoff: a message is searchable a moment later, which is fine because the current chat is already in context.
@@ -68,7 +71,13 @@ If Neon, Cohere or Pinecone fail, recall is skipped and the agent still answers.
 "When" questions need real dates and the model should not guess today's date.
 
 **Search results are trimmed and cached.**
-Five results with ~300-char snippets are enough to answer and keep tokens low. A 10 minute cache makes repeats instant. Tradeoff: up to 10 minutes stale.
+Five results with ~300-char snippets are enough to answer and keep tokens low. A 10 minute in-memory cache (checked inside the search service) makes repeats instant. Tradeoff: up to 10 minutes stale, and the cache is lost on restart. The model picks the search query, so the cache cannot be checked before the model runs; this differs from the first draft.
+
+**Built for a small model.**
+Tool description and input are short and strict (query 2 to 200 chars), tool output is capped, the last step has tools turned off so the model must write an answer instead of looping, and a search error returns `{ error }` so the model can say the search failed. Recall has a 3 second limit so a slow service never delays the reply.
+
+**Stream order matters.**
+The server sends the `start` chunk first, then the `data-memory` part, then the model stream. In testing, the browser dropped a memory part that arrived before `start`.
 
 **Max 3 steps per answer.**
 Stops search loops and keeps latency predictable. Tradeoff: very deep research gets a shorter answer.
@@ -84,14 +93,16 @@ Tool payloads are big and rarely useful later. Tradeoff: cannot replay old searc
 | Failure | Behaviour |
 |---|---|
 | Tavily timeout or error | Tool returns an error object, the model says it could not search |
-| Groq rate limit or 5xx | UI shows a short message with Retry |
-| User stops generation | Server aborts the model call, no wasted tokens |
+| Groq rate limit (429) or 5xx | UI shows a short friendly message with Retry |
+| User stops generation | The UI stops reading the stream. The server does not cancel the model call yet (future), so some tokens are wasted |
 | Neon, Cohere or Pinecone down | Recall skipped, answer continues |
 | No good memory match | Nothing injected, no badge |
 
 ## 5. What I would do next
 
-- Auth and per-user memory (today memory is per browser)
+- Cancel the model call on the server when the user presses Stop or closes the page (it was removed to keep the code simple)
+- Auth and per-user memory (today memory is per browser, and recall looks at all chats in the database)
+- Chat list sidebar and file upload (out of scope for this build)
 - Summarize old chats instead of dropping them
 - Re-rank search results and fetch page content for top hits
 - Evals with graded answers, not only latency and tool-use checks
@@ -99,3 +110,9 @@ Tool payloads are big and rarely useful later. Tradeoff: cannot replay old searc
 ## 6. How I built it
 
 Built with an AI coding agent, phase by phase from `plan.md`. The real prompt log is in `prompts.md`.
+
+Changes made while building, each logged as a prompt: simpler beginner-level code everywhere, no `env.js`, no global error handler, no abort handling, and the search code split into a service, a tool and a single `tools/tool.js`.
+
+AI SDK v7 differences handled: `stepCountIs` is now `isStepCount`, and the standalone `toUIMessageStream` and `pipeUIMessageStreamToResponse` are used instead of the deprecated methods on the result.
+
+Verification status: the server routes, validation, Tavily search with caching, Neon table and reads/writes, Cohere embeddings, the recall formatting script and the client build were tested. The full model reply (Groq), Pinecone upsert/query and the cross-chat recall check were not run, because the Groq key was missing and Pinecone rejected its API key at the time of the build.
