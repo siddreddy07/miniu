@@ -5,6 +5,8 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 
 import { getChatId } from "@/lib/chat-id"
+import ToolCall, { type SearchPart } from "@/components/chat/tool-call"
+import SourceBadges from "@/components/chat/source-badges"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
 import {
@@ -80,6 +82,21 @@ function ChatBox({ chatId }: { chatId: string }) {
                             </p>
                           )
                         }
+                        if (part.type === "tool-webSearch") {
+                          const searchPart = part as unknown as SearchPart
+
+                          const results = (searchPart.output?.results ??
+                            []) as { title: string; url: string }[]
+
+                          return (
+                            <div key={index} className="flex flex-col gap-1.5">
+                              <ToolCall part={searchPart} />
+
+                              <SourceBadges results={results} />
+                            </div>
+                          )
+                        }
+
                         return null
                       })}
                     </MessageContent>
