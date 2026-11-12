@@ -7,7 +7,7 @@ import {
 } from 'ai';
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
-import { createUser, createChat, saveMessage, indexMessage } from './memory.service.js';
+import { createUser, createChat, isChatOwner, saveMessage, indexMessage } from './memory.service.js';
 import { getRecall } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
@@ -40,6 +40,14 @@ export async function startChat(userId, chatId, messages) {
   // 1. Make sure the user and the chat exist, then save the user message
   await createUser(userId);
   await createChat(userId, chatId, userText);
+
+  // The chat id comes from the URL, so check the chat really belongs to this user
+  if (!(await isChatOwner(userId, chatId))) {
+    const error = new Error('This chat belongs to someone else');
+    error.statusCode = 403;
+    throw error;
+  }
+
   const userMessage = await saveMessage(userId, chatId, 'user', userText, lastMessage.id);
 
   // 2. Find older messages from other chats

@@ -25,6 +25,9 @@ export async function chatController(req, res) {
     await pipeUIMessageStreamToResponse({ response: res, stream: stream });
   } catch (error) {
     console.log('Chat error:', error.message);
+    if (error.statusCode === 403) {
+      return res.status(403).json({ error: 'This chat belongs to someone else' });
+    }
     res.status(500).json({ error: 'Could not start the chat' });
   }
 }

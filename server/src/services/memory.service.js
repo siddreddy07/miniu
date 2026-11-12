@@ -34,6 +34,18 @@ export async function getChats(userId) {
   }
 }
 
+// Is this chat owned by this user? Used to stop people writing into other people's chats.
+// If the database is down nothing can be saved anyway, so we say yes and let the chat work.
+export async function isChatOwner(userId, chatId) {
+  try {
+    const chat = await selectChat(chatId, userId);
+    return chat !== null;
+  } catch (error) {
+    console.log('Could not check chat owner:', error.message);
+    return true;
+  }
+}
+
 // Makes the user row the first time we see this user
 export async function createUser(userId) {
   try {
