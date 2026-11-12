@@ -55,6 +55,9 @@ Why not SQLite: a local file does not survive serverless or ephemeral hosting an
 **Cohere embeddings with separate document and query modes.**
 Cohere's models are trained for retrieval, using `search_document` when storing and `search_query` when searching. Tradeoff: one extra network call per search.
 
+**Tables in Neon.**
+Three tables: `users` (id), `chats` (id, user_id, title, created_at) and `messages` (id, chat_id, role, text, created_at). One user has many chats, and one chat has many messages. A message belongs only to its chat, so to find a user's messages we go through the chat. The user id is an anonymous id the browser makes and keeps in localStorage (a real login is future work). `POST /api/chats/:chatId/messages` takes the chat id from the URL and the user id from the body, finds the chat for that user (404 if it is not theirs) and returns the chat with all its messages. There is no pagination yet.
+
 **What Pinecone stores.**
 One record per user message. Id: `user-<chatId>-<timestamp>`. Values: the 1024-number Cohere vector. Metadata: `messageId` (links back to the Neon row), `chatId`, `role`, `createdAt`, `text`. Recall filters out the current chat with `chatId != current`.
 

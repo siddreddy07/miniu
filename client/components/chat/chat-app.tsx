@@ -26,15 +26,23 @@ async function fetchChats(userId: string): Promise<ChatItem[]> {
   }
 }
 
-// Asks the server for the saved messages of one chat
+// Asks the server for the saved messages of one conversation.
+// The conversation id goes in the URL, the user id goes in the body.
 async function fetchMessages(
   userId: string,
   chatId: string
 ): Promise<UIMessage[]> {
   try {
     const response = await fetch(
-      apiUrl + "/api/chats/" + chatId + "/messages?userId=" + userId
+      apiUrl + "/api/chats/" + chatId + "/messages",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userId }),
+      }
     )
+    // 404 means a new conversation that has no messages yet
+    if (!response.ok) return []
     const data = await response.json()
     return data.messages.map(
       (message: { id: string; role: "user" | "assistant"; text: string }) => ({
