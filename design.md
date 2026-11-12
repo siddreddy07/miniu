@@ -82,6 +82,9 @@ If Neon, Cohere or Pinecone fail, recall is skipped and the agent still answers.
 **Search results are trimmed and cached.**
 Five results with ~300-char snippets are enough to answer and keep tokens low. A 10 minute in-memory cache (checked inside the search service) makes repeats instant. Tradeoff: up to 10 minutes stale, and the cache is lost on restart. The model picks the search query, so the cache cannot be checked before the model runs; this differs from the first draft.
 
+**System prompt in parts.**
+Fixed parts: role and date, when to search, how to use results (cite `[n]`, no source list), how to use the Earlier chats list (only when it helps, never a source of facts), and style (short, no headings). Extra parts are added only when needed: a past-only block (search off, use the dates, do not claim anything changed) or a past-plus-updates block (search once, then two or three sentences: what was said before, what the web shows now). The before/now comparison appears only when the user asks about changes.
+
 **Built for a small model.**
 Tool description and input are short and strict (query 2 to 200 chars), tool output is capped, the last step has tools turned off so the model must write an answer instead of looping, and a search error returns `{ error }` so the model can say the search failed.
 
