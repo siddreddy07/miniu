@@ -9,9 +9,3 @@ app.use(cors({ origin: env.CLIENT_ORIGIN }));
 app.use(express.json());
 
 app.use(chatRouter);
-
-// Runs when something throws an error
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Something went wrong' });
-});
