@@ -62,7 +62,12 @@ export default function AppSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
-        <Button onClick={handleNewChat}>New chat</Button>
+        <Button
+          className="cursor-pointer border-2 border-dashed"
+          onClick={handleNewChat}
+        >
+          New chat
+        </Button>
       </SidebarHeader>
 
       <SidebarContent>
@@ -88,7 +93,7 @@ export default function AppSidebar({
                   <SidebarMenuButton
                     isActive={chat.id === currentChatId}
                     onClick={() => handleSelect(chat.id)}
-                    className="h-auto"
+                    className="mt-1 h-auto cursor-pointer hover:opacity-90"
                   >
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate">{chat.title}</span>

@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import type { UIMessage } from "ai"
 
-import { getUserId, getChatId, setChatId, newChatId } from "@/lib/chat-id"
+import { useRouter } from "next/navigation"
+
+import { getUserId, newChatId } from "@/lib/chat-id"
 import Chat from "@/components/chat/chat"
 import AppSidebar, { type ChatItem } from "@/components/chat/app-sidebar"
 import {
@@ -56,47 +58,44 @@ async function fetchMessages(
   }
 }
 
-export default function ChatApp() {
+// The chat id comes from the URL: /chat/<chatId>
+export default function ChatApp({ chatId }: { chatId: string }) {
+  const router = useRouter()
   const [userId, setUserId] = useState("")
-  const [chatId, setCurrentChatId] = useState("")
   const [chats, setChats] = useState<ChatItem[]>([])
   // null means "still loading the messages"
   const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(
     null
   )
 
-  // When the page opens: find the user, the open chat, and load them
+  // When the page opens: take the user id from localStorage, then load the chat list
+  // and the messages of the chat in the URL.
+  // If the chat is not this user's, the server says "not found" and we show an empty chat.
   useEffect(() => {
     async function start() {
       const savedUserId = getUserId()
-      const savedChatId = getChatId()
       const [chatList, messages] = await Promise.all([
         fetchChats(savedUserId),
-        fetchMessages(savedUserId, savedChatId),
+        fetchMessages(savedUserId, chatId),
       ])
       setUserId(savedUserId)
-      setCurrentChatId(savedChatId)
       setChats(chatList)
       setInitialMessages(messages)
     }
     start()
-  }, [])
+  }, [chatId])
 
   async function reloadChats() {
     setChats(await fetchChats(userId))
   }
 
-  async function selectChat(id: string) {
-    if (id === chatId) return
-    setInitialMessages(null)
-    setChatId(id)
-    setCurrentChatId(id)
-    setInitialMessages(await fetchMessages(userId, id))
+  // Changing the chat means changing the URL
+  function selectChat(id: string) {
+    router.push("/chat/" + id)
   }
 
   function startNewChat() {
-    setCurrentChatId(newChatId())
-    setInitialMessages([])
+    router.push("/chat/" + newChatId())
   }
 
   return (

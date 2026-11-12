@@ -71,10 +71,11 @@ export default function Chat({
                 <MessageScrollerItem key={message.id} messageId={message.id}>
                   <Message align={message.role === "user" ? "end" : "start"}>
                     <MessageContent
+                      // w-fit: the bubble is only as wide as its text (max 80% of the row)
                       className={
                         message.role === "user"
-                          ? "rounded-2xl bg-primary px-3 py-2 text-primary-foreground"
-                          : ""
+                          ? "w-fit max-w-[80%] rounded-2xl bg-primary px-3 py-2 text-primary-foreground"
+                          : "w-fit max-w-[80%] rounded-2xl bg-muted px-3 py-2"
                       }
                     >
                       {message.parts.map((part, index) => {
