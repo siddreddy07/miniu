@@ -19,7 +19,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL + "/api/chat"
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/api/chat"
 
 // Gets the search results of a message, so [1] in the answer can link to result 1.
 // If the model searched twice, we use the last search.

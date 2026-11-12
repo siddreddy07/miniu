@@ -6,7 +6,7 @@ import type { UIMessage } from "ai"
 import Chat from "@/components/chat/chat"
 import { useShell } from "@/components/chat/chat-shell"
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 // What the server sends for each saved message
 type SavedMessage = {

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 // Asks the server for the chat list of this user
 async function fetchChats(userId: string): Promise<ChatItem[]> {
