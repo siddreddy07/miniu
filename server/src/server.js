@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { app } from './app.js';
 import { createTables } from './lib/db.js';
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 8000;
 
 // Connect to the database and create the table on startup
 try {

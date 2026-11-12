@@ -23,7 +23,7 @@ npm run dev
 |---|---|---|
 | `GROQ_API_KEY` | Groq API key | yes |
 | `TAVILY_API_KEY` | Tavily API key | yes |
-| `PORT` | server port (default 4000) | no |
+| `PORT` | server port (default 8000) | no |
 | `CLIENT_ORIGIN` | the client url (default http://localhost:3000) | no |
 | `DATABASE_URL` | Neon Postgres connection string | for memory |
 | `COHERE_API_KEY` | Cohere key (embeddings) | for memory |
@@ -32,7 +32,7 @@ npm run dev
 
 Without the memory variables the chat still works, it just has no memory.
 
-Check it runs: `curl localhost:4000/health` should print `{"ok":true}`.
+Check it runs: `curl localhost:8000/health` should print `{"ok":true}`.
 
 ### 2. Client
 
