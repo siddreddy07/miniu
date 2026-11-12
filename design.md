@@ -20,7 +20,7 @@ Browser (Next.js + shadcn)
   useChat ──POST /api/chat──▶ Express (JavaScript)
      ▲                          route → controller → chat.service
      │                          1. save user message         (Neon)
-     │                          2. recall past messages       (Neon recency + Pinecone similarity)
+     │                          2. recall past messages       (Neon by day or recency + Pinecone similarity)
      │                          3. build prompt (date, memory block)
      │                          4. streamText (Groq) + webSearch tool (Tavily)
      └──── UI message stream ◀──5. stream text, tool parts, data-memory part
@@ -59,7 +59,10 @@ Cohere's models are trained for retrieval, using `search_document` when storing 
 Three tables: `users` (id), `chats` (id, user_id, title, created_at) and `messages` (id, chat_id, role, text, created_at). One user has many chats, and one chat has many messages. A message belongs only to its chat, so to find a user's messages we go through the chat. The user id is an anonymous id the browser makes and keeps in localStorage (a real login is future work). `POST /api/chats/:chatId/messages` takes the chat id from the URL and the user id from the body, finds the chat for that user (404 if it is not theirs) and returns the chat with all its messages. There is no pagination yet.
 
 **What Pinecone stores.**
-One record per user message, stored in the user's own **namespace** (the namespace is the userId), so one user's vectors are completely separate from another's and the search needs no user filter. Id: `<userId>:<chat created time>:<message time>`, where the chat time is when that chat was first created. Values: the 1024-number Cohere vector. Metadata: `chatId`, `chatCreatedAt`, `role`, `createdAt`, `text`. A search covers every chat of that user, old ones and the current one. The chat time and chat id stay in the metadata so more filters (for example dates, which a "what did I ask yesterday" question needs) can be added later. Messages the model already sees in the current chat are skipped when recalling. We do not use one namespace per chat, because a Pinecone query reads only one namespace and recall must reach all of a user's chats.
+One record per user message, stored in the user's own **namespace** (the namespace is the userId), so one user's vectors are completely separate from another's and the search needs no user filter. Id: `<userId>:<chat created time>:<message time>`, where the chat time is when that chat was first created. Values: the 1024-number Cohere vector. Metadata: `chatId`, `chatCreatedAt`, `role`, `createdAt`, `text`. A search covers every chat of that user, old ones and the current one. The chat time and chat id stay in the metadata so more filters can be added later. Pinecone is not used for day questions (see "Date-based recall"), because its `createdAt` metadata is text and cannot be range-filtered. Messages the model already sees in the current chat are skipped when recalling. We do not use one namespace per chat, because a Pinecone query reads only one namespace and recall must reach all of a user's chats.
+
+**Date-based recall reads Neon, not Pinecone.**
+For "what did I ask yesterday / on Monday / last week Tue / November 10th" the server reads the day from the message in plain JavaScript (`lib/dateRange.js`, `getDateRange`), in the timezone the browser sends with each message. It then asks Neon for that user's messages between the start and end of that day (`selectUserMessagesInRange`, joined through `chats` on `user_id`). Neon is the source of truth and has real timestamps, so no vector search is needed. If no day is found, or that day has no messages, recall falls back to recent chats plus Pinecone similarity. A day word alone is not enough: "who won the match yesterday?" must still use web search, so a day only counts as a question about the past when words like "I ask", "I said" or "we talk" are also there (`wantsRecall`). Tradeoff: the wording lists are small and fixed, so unusual phrasing falls back to normal search.
 
 **Only user messages are embedded.**
 "What did I ask" is about the user's own words. Embedding assistant text would dilute the matches. The assistant message is still saved in Neon.
@@ -91,8 +94,8 @@ Stops search loops and keeps latency predictable. Tradeoff: very deep research g
 **Evidence as badges.**
 Web badges are numbered to match `[1]` in the text. Memory badges show the date of the earlier chat. Users see what came from the web versus their own history, one click to verify.
 
-**Store text only.**
-Tool payloads are big and rarely useful later. Tradeoff: cannot replay old search results, only what was said.
+**Store the trimmed search result with the answer.**
+The assistant message keeps the web search it used (`search`: query plus the 5 trimmed results, saved as JSON in `messages.search`), so source badges still show after a reload. Tradeoff: a little more storage per answer. Full page content is never stored.
 
 ## 4. Failure handling
 
@@ -107,15 +110,16 @@ Tool payloads are big and rarely useful later. Tradeoff: cannot replay old searc
 ## 5. What I would do next
 
 - Cancel the model call on the server when the user presses Stop or closes the page (it was removed to keep the code simple)
-- Auth and per-user memory (today memory is per browser, and recall looks at all chats in the database)
-- Chat list sidebar and file upload (out of scope for this build)
+- Real login (today a user is a random id kept in the browser, so clearing it loses the chats)
+- File upload (out of scope for this build)
+- Numeric `createdAt` in Pinecone metadata, so date filters can also run inside Pinecone
 - Summarize old chats instead of dropping them
 - Re-rank search results and fetch page content for top hits
 - Evals with graded answers, not only latency and tool-use checks
 
 ## 6. How I built it
 
-Built with an AI coding agent, phase by phase from `plan.md`. The real prompt log is in `prompts.md`.
+Built with an AI coding agent, phase by phase from `plan.md`. The prompt log is kept locally and is not pushed to the repo.
 
 Changes made while building, each logged as a prompt: simpler beginner-level code everywhere, no `env.js`, no global error handler, no abort handling, and the search code split into a service, a tool and a single `tools/tool.js`.
 
