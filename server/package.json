@@ -12,8 +12,11 @@
   "type": "module",
   "dependencies": {
     "@ai-sdk/groq": "^4.0.81",
+    "@neondatabase/serverless": "^1.2.0",
+    "@pinecone-database/pinecone": "^9.2.0",
     "@tavily/core": "^1.0.0",
     "ai": "^7.0.170",
+    "cohere-ai": "^8.3.1",
     "cors": "^2.8.6",
     "dotenv": "^18.0.10",
     "express": "^5.3.0",
