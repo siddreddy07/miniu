@@ -8,7 +8,7 @@ import {
 import { model, MAX_HISTORY, MAX_OUTPUT_TOKENS, MAX_TOOL_CALLS } from '../config/ai.js';
 import { buildSystemPrompt } from './prompt.service.js';
 import { createUser, createChat, isChatOwner, saveMessage, indexMessage } from './memory.service.js';
-import { getRecall } from './recall.service.js';
+import { getRecall, wantsRecall } from './recall.service.js';
 import { tools } from '../tools/tool.js';
 
 // Gets the plain text of a message
@@ -60,7 +60,9 @@ export async function startChat(userId, chatId, messages) {
   // 3. Ask the model
   const modelMessages = await convertToModelMessages(recentMessages, { tools: tools });
 
-  const systemPrompt = buildSystemPrompt(snippets);
+  // For a question about the past, the model answers from memory and does not search
+  const askingAboutPast = wantsRecall(userText);
+  const systemPrompt = buildSystemPrompt(snippets, askingAboutPast);
 
   // The web search result of this answer, saved so the source badges survive a reload
   let search = null;
@@ -70,6 +72,8 @@ export async function startChat(userId, chatId, messages) {
     system: systemPrompt,
     messages: modelMessages,
     tools: tools,
+    // For a question about the past, no tool is allowed
+    activeTools: askingAboutPast ? [] : undefined,
     stopWhen: isStepCount(MAX_TOOL_CALLS + 1),
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     // Think a little, and keep the thinking out of the answer

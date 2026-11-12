@@ -10,7 +10,7 @@ export function formatDate(isoDate) {
 export function buildMemoryBlock(snippets) {
   if (!snippets || snippets.length === 0) return '';
 
-  const lines = ['Earlier chats (the user said these before, use them only if they help):'];
+  const lines = ['Earlier chats (what the user said before. This is not a source of facts):'];
   for (const snippet of snippets) {
     lines.push('- [' + formatDate(snippet.createdAt) + '] ' + snippet.role + ': ' + snippet.text);
   }
@@ -18,7 +18,8 @@ export function buildMemoryBlock(snippets) {
 }
 
 // Builds the system prompt that tells the model how to behave
-export function buildSystemPrompt(snippets) {
+// askingAboutPast is true when the user asks about their own earlier chats
+export function buildSystemPrompt(snippets, askingAboutPast) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dateText = new Date().toLocaleString('en-US', {
     dateStyle: 'full',
@@ -44,6 +45,14 @@ export function buildSystemPrompt(snippets) {
     '- Keep answers short and clear: a short paragraph or a few bullet points.',
     '- Be honest. If you do not know something, say so.',
   ];
+
+  // A question about the user's own past is answered from memory, never from the web
+  if (askingAboutPast) {
+    lines.push('');
+    lines.push('The user is asking about their own earlier chats. Do NOT use the webSearch tool for this.');
+    lines.push('Answer only from the Earlier chats list. It shows what the user said before, with dates.');
+    lines.push('If the list is missing or does not help, say you cannot find it in the earlier chats.');
+  }
 
   const memoryBlock = buildMemoryBlock(snippets);
   if (memoryBlock !== '') {

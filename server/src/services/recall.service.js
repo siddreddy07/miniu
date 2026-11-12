@@ -2,9 +2,10 @@ import { getUserMessagesFromOtherChats, searchSimilarMessages } from './memory.s
 import { RECALL_MAX_TOKENS, RECALL_RECENT_LIMIT, RECALL_SEMANTIC_LIMIT } from '../config/ai.js';
 
 // If the user writes one of these, they are asking about the past
-const RECALL_WORDS = ['earlier', 'before', 'last time', 'yesterday', 'did i ask', 'what did i', 'remember'];
+const RECALL_WORDS = ['earlier', 'last time', 'yesterday', 'did i ask', 'what did i', 'remember', 'asked before'];
 
-function wantsRecall(text) {
+// Exported because the chat service also needs to know if this is a question about the past
+export function wantsRecall(text) {
   const lowerText = text.toLowerCase();
   for (const word of RECALL_WORDS) {
     if (lowerText.includes(word)) return true;
