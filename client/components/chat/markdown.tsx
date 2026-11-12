@@ -46,7 +46,7 @@ export default function Markdown({
                   : "underline"
               }
             >
-              {children}
+              {isCitation ? "[" + children + "]" : children}
             </a>
           )
         },
