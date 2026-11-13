@@ -13,6 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Plus } from "lucide-react"
 
 export type ChatItem = {
   id: string
@@ -65,12 +66,15 @@ export default function AppSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
+        <div className="border-2 font-black rounded-md flex items-center justify-between gap-2 border-dashed p-2 text-center">
+        <h1>MINIU</h1>
         <Button
-          className="cursor-pointer border-2 border-dashed"
+          className="cursor-pointer flex items-center border-2 border-dashed"
           onClick={handleNewChat}
-        >
-          New chat
+          >
+          <Plus className="h-4 w-4" />
         </Button>
+          </div>
       </SidebarHeader>
 
       <SidebarContent>
