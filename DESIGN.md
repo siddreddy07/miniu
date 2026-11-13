@@ -38,12 +38,29 @@ One request, one stream. Text, tool calls and memory evidence all travel on it. 
 - Embedding assistant answers too: it dilutes matches. Loading the answer from Neon is cheaper and exact.
 - SQLite: does not survive serverless hosting.
 
+## Known limits
+
+- Recall depends on word lists (`wantsRecall`, `wantsFresh`), so an unusual way of asking may not trigger memory.
+- A follow-up with no recall phrase does not bring back older chats.
+
 ## With another week
 
-- Real login, and cancel the model call when the user presses Stop.
-- Numeric `createdAt` in Pinecone, and loading the old answer for follow-ups that use no recall phrase.
+**Make what exists stronger**
+
+- Proper authentication (OAuth or email login) instead of anonymous browser ids, with sessions and rate limits per user.
+- Cancel the model call when the user presses Stop.
+- A small classifier instead of word lists for "is this about the past?", so recall triggers on any phrasing.
+- Numeric `createdAt` in Pinecone so vector search can filter by date, and loading the old answer for follow-ups that use no recall phrase.
+- Semantic caching: embed each question and reuse a recent answer when a new one means the same thing, for less latency and cost.
+- More guardrails: prompt-injection checks on search results, input and output moderation, PII redaction before anything is embedded, and a check that every claim has a citation.
 - Fetch page content for top search hits and re-rank, since snippets can be old.
-- Evals with graded answers (latency, tool use, recall, "did it check before saying nothing changed").
-- Summarise old chats instead of dropping them, and pagination.
+- Evals with graded answers (latency, tool use, recall accuracy, "did it check before saying nothing changed"), run in CI.
+- Tracing and metrics per request (first-token time, search time, recall hit rate).
+
+**New features**
+
+- File upload with a proper ingestion pipeline: store the file, put a job on a queue, and let a worker parse, chunk, embed and index it into the user's Pinecone namespace, with status shown in the UI. The agent can then answer from the user's own documents as well as the web.
+- Summarise old chats instead of dropping them, and pagination of chat history.
+- Search and delete over past chats, and export them.
 
 Not measured: the 1.5 second first-token time. The UI was verified by build, lint and scripted requests, not an automated browser test.
