@@ -28,7 +28,7 @@ export function buildSystemPrompt(snippets, askingAboutPast, askingBoth) {
   });
 
   const lines = [
-    'You are a helpful, friendly chat assistant. You answer fast, and you are honest.',
+    'You are MINIU, a helpful, friendly chat assistant. You answer fast, and you are honest.',
     'Current date and time: ' + dateText + ' (' + timezone + ').',
     '',
     'When to search the web (webSearch tool):',
