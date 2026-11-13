@@ -45,22 +45,12 @@ One request, one stream. Text, tool calls and memory evidence all travel on it. 
 
 ## With another week
 
-**Make what exists stronger**
-
-- Proper authentication (OAuth or email login) instead of anonymous browser ids, with sessions and rate limits per user.
+- Proper authentication instead of anonymous ids.
+- A rate limiter on `/api/chat`.
+- Semantic caching for repeated questions.
+- More guardrails on input, output and search results.
+- Date filtering in Pinecone, and recall for follow-ups with no recall phrase.
 - Cancel the model call when the user presses Stop.
-- A small classifier instead of word lists for "is this about the past?", so recall triggers on any phrasing.
-- Numeric `createdAt` in Pinecone so vector search can filter by date, and loading the old answer for follow-ups that use no recall phrase.
-- Semantic caching: embed each question and reuse a recent answer when a new one means the same thing, for less latency and cost.
-- More guardrails: prompt-injection checks on search results, input and output moderation, PII redaction before anything is embedded, and a check that every claim has a citation.
-- Fetch page content for top search hits and re-rank, since snippets can be old.
-- Evals with graded answers (latency, tool use, recall accuracy, "did it check before saying nothing changed"), run in CI.
-- Tracing and metrics per request (first-token time, search time, recall hit rate).
-
-**New features**
-
-- File upload with a proper ingestion pipeline: store the file, put a job on a queue, and let a worker parse, chunk, embed and index it into the user's Pinecone namespace, with status shown in the UI. The agent can then answer from the user's own documents as well as the web.
-- Summarise old chats instead of dropping them, and pagination of chat history.
-- Search and delete over past chats, and export them.
+- File upload with a queue and an ingestion pipeline, so it can answer from the user's documents.
 
 Not measured: the 1.5 second first-token time. The UI was verified by build, lint and scripted requests, not an automated browser test.
