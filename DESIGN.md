@@ -1,56 +1,86 @@
 # DESIGN.md
 
-A chat agent with one tool, web search. It answers fast, cites its sources, and remembers what you asked and when, so it can answer "what did I ask on 3 November, is it still correct?".
+## What I built
+
+MINIU is a chat agent with one tool: web search. It answers fast, shows where each fact came from, and remembers what you asked and when. So you can ask "what did I ask on 3 November, and is it still correct?".
+
+It handles three kinds of questions:
+
+| You ask | What it does |
+| --- | --- |
+| "When is the GTA VI release date?" | Normal question. Search is on, the answer cites sources as `[1]`, `[2]`. |
+| "Did we talk about GTA VI?" | About your past. Search is off, it answers from your old chats and gives the date. |
+| "Did we talk about GTA VI? Any updates since?" | Past and present. It reads the old answer, searches once, and says what changed. |
 
 ## How it works
 
-```
-Browser (Next.js) --POST /api/chat--> Express --> chat.service.startChat
-  1. save the user message                         (Neon)
-  2. recall earlier chats                          (Neon by day, Pinecone by meaning)
-  3. build the system prompt (date, memory block)
-  4. streamText (Groq) with the webSearch tool     (Tavily)
-  5. stream: start -> memory badges -> text + tool parts
-  6. after the reply: save the answer and its sources (Neon), embed the question (Cohere -> Pinecone)
-```
+1. The server saves your message in the database (Neon).
+2. It checks whether you are asking about your own past chats (`wantsRecall`, `wantsFresh`). If yes, it finds those old messages:
+   - A day ("yesterday", "Monday", "3 November"): plain code turns it into a start and end time in your timezone (`getDateRange`), and Neon returns your messages in that range.
+   - A topic ("did we talk about Kyoto food?"): Cohere turns the question into a vector, and Pinecone finds your old questions with the same meaning.
+   - For each old question found, it also loads the answer that came right after it from Neon (`getAnswerAfter`).
+3. It writes the instructions for the model: today's date, the rules, and the old messages.
+4. The model (Groq) writes the answer through the Vercel AI SDK (`ai` with `@ai-sdk/groq`): `streamText` runs the model, and `tool()` defines web search (Tavily). If it needs fresh facts, it calls the tool.
+5. Everything streams to the browser on one connection. On the server, `createUIMessageStream` first writes the "From earlier chat" badges, then merges in the model stream (text, the search step, sources), and `pipeUIMessageStreamToResponse` sends it through Express. In the browser, `useChat` from `@ai-sdk/react` with `DefaultChatTransport` reads the stream and renders each part as it arrives.
+6. After the answer, the server saves it with its sources, and stores your question in Pinecone. You never wait for this.
 
-One request, one stream. Text, tool calls and memory evidence all travel on it. Saving and indexing happen after the reply, so the user never waits for them.
+## Why we built it this way
 
-## Decisions
+- **Memory is a step before the model, not a tool.** The brief allows one tool, and a step before the model costs no extra model call.
+- **Word checks decide the kind of question.** This decides which tools the model gets, so it must run before the model, cost nothing and always give the same result.
+- **Neon for dates, Pinecone for meaning.** Neon has exact times, so "what did I ask on Monday" is an exact lookup. Pinecone finds the same topic in different words.
+- **Only questions go into Pinecone, answers come from Neon.** Embedding answers too makes matches worse. Reading the answer after the question is cheap and exact, and it makes "what was the second place you suggested?" work.
+- **One Pinecone namespace per user.** A search can only read your own messages. There is no filter that someone could forget.
+- **Search is off for past-only questions.** The answer must come from memory. The model is also told not to claim anything changed, because it did not check.
+- **"Any updates since?" turns search back on.** Only the web knows what is true now, so it searches once and compares.
+- **A day word alone is not memory.** "Who won the match yesterday?" must search the web. A day counts only with words like "I asked" or "we shortlisted".
+- **Fast:** Groq streaming, short instructions, 5 trimmed search results, a 10 minute search cache, at most 2 searches per answer, only the last 12 messages sent.
+- **Correct:** it cites every fact. If search fails or finds nothing, it says so instead of guessing.
+- **Built for a small model:** on the last step the tool is turned off, so it must answer instead of searching again.
+- **Never one point of failure:** if Neon, Cohere or Pinecone is down, memory is skipped and chat still works.
+- **Vercel AI SDK on both sides.** The server and the browser speak the same message format, so streaming, tool calls and our own memory parts need no custom protocol. Changing the model provider means changing one line (`@ai-sdk/groq`).
+- **Express, not Next.js API routes,** so other clients can use the same agent. **Plain JavaScript**, with input checked by zod.
 
-- **Memory is a step before the model, not a tool.** The brief allows one tool. A pre-step costs no extra model round trip. Cheap word rules decide whether a message is about the past (`wantsRecall`).
-- **Neon for exact facts, Pinecone for meaning.** "What did I ask yesterday / Monday / 3 November" is a date question: plain JavaScript reads the day in the user's timezone (`getDateRange`) and Neon returns that user's messages. "Did we talk about X" is a meaning question: Cohere embeddings and Pinecone.
-- **One Pinecone namespace per user.** One user can never match another's messages, and no filter is needed. Only user messages are embedded.
-- **Old answers come back through the question.** For a past question, each recalled message gets the assistant reply that followed it (`getAnswerAfter`, Neon), so "what was the second place you suggested?" works.
-- **"Has it changed since?" turns search back on.** A past-only question has search off and may not claim anything changed. If it also asks about updates (`wantsFresh`), the model searches once and compares the old answer with what the web shows now, in two or three sentences.
-- **A day word alone is not memory.** "Who won the match yesterday?" must search the web, so a day counts only with words like "I asked" or "we shortlisted".
-- **Fast.** Groq streaming, a short strict prompt, 5 trimmed search results, a 10 minute search cache, at most 2 searches per answer, only the last 12 messages sent.
-- **Right.** Search for anything recent. Cite as `[1]` and show source badges. If the search fails or says nothing, the model says so.
-- **Built for a small model.** Tools are switched off on the last step so it must answer. The search result is saved with the answer, so badges survive a reload.
-- **Never a single point of failure.** If Neon, Cohere or Pinecone fail, recall is skipped and chat still works.
-- **Express, not Next route handlers**, so the agent can serve other clients. **Plain JavaScript** in a simple style, with zod at the edge. Users are anonymous ids in the browser, and chats are checked for ownership (403).
+## Trade-offs
 
-## Considered and rejected
+| We chose | Instead of | We gain | We give up |
+| --- | --- | --- | --- |
+| Word checks | A model deciding if it is about the past | Free, instant, predictable | Unusual wording can be missed |
+| Vercel AI SDK | Calling the Groq API and writing our own stream | Streaming, tools and the React hook work out of the box | We follow the SDK's message format and its version changes |
+| Memory as a step | Memory as a second tool | One tool, no extra model call | The model cannot ask for more memory itself |
+| Neon for dates | Pinecone date filter | Exact time ranges | Two stores to keep in sync |
+| Only questions in Pinecone | Questions and answers | Better matches, exact old answers | One extra database read per match |
+| One namespace per user | One per chat | Memory works across all chats, private by design | A chat cannot be searched on its own |
+| Saving after the reply | Saving before | The user never waits | A just-asked question is searchable only a few seconds later |
+| Neon | SQLite | Works on serverless hosting | Needs a network connection |
+| Anonymous ids | Real login | Nothing to set up | Anyone with the id can see the chats |
 
-- Memory as a second tool: breaks the one-tool rule and adds a model round trip.
-- Pinecone for dates: its `createdAt` is text and cannot be range-filtered, and Neon has the real timestamps.
-- One namespace per chat: a query reads one namespace, and recall must cross all chats.
-- Embedding assistant answers too: it dilutes matches. Loading the answer from Neon is cheaper and exact.
-- SQLite: does not survive serverless hosting.
+## How it was built
 
-## Known limits
+Built with the help of AI coding agents: OpenCode and Claude Code.
 
-- Recall depends on word lists (`wantsRecall`, `wantsFresh`), so an unusual way of asking may not trigger memory.
-- A follow-up with no recall phrase does not bring back older chats.
+## Limitations
 
-## With another week
+- Memory depends on word lists, so an unusual way of asking may not trigger it.
+- A follow-up with no memory phrase does not bring back older chats.
+- Pressing Stop hides the answer but does not cancel the model call.
+- Old answers are cut to 500 characters when loaded.
+- The 1.5 second first-token time was not measured. The UI was checked by build, lint and scripted requests, not an automated browser test.
 
-- Proper authentication instead of anonymous ids.
+## With more time
+
+**Hardening**
+
+- Proper login instead of anonymous ids.
 - A rate limiter on `/api/chat`.
-- Semantic caching for repeated questions.
 - More guardrails on input, output and search results.
-- Date filtering in Pinecone, and recall for follow-ups with no recall phrase.
 - Cancel the model call when the user presses Stop.
-- File upload with a queue and an ingestion pipeline, so it can answer from the user's documents.
 
-Not measured: the 1.5 second first-token time. The UI was verified by build, lint and scripted requests, not an automated browser test.
+**Better memory and speed**
+
+- Date filtering in Pinecone, and memory for follow-ups with no memory phrase.
+- Semantic caching for repeated questions.
+
+**New features**
+
+- File upload with a queue and an ingestion pipeline, so it can answer from your own documents.
